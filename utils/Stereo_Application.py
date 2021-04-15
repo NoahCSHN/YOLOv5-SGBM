@@ -67,8 +67,8 @@ class SGBM:
             mode=cv2.STEREO_SGBM_MODE_SGBM_3WAY
             )
         # logging.info(f'\nSGBM Inital Done. ({time.time() - t0:.3f}s)') #cp3.6
-        # logging.info('\nSGBM Inital Done. (%.2fs)',(time.time() - t0)) #cp3.5
-        print('SGBM Inital Done. (%.2fs)'%(time.time() - t0)) #cp3.5
+        logging.info('\nSGBM Inital Done. (%.2fs)',(time.time() - t0)) #cp3.5
+        # print('SGBM Inital Done. (%.2fs)'%(time.time() - t0)) #cp3.5
     
     def __del__(self):
         class_name=self.__class__.__name__
@@ -83,6 +83,7 @@ class SGBM:
         self.disparity = self.stereo.compute(self.imgL, self.imgR, False).astype(np.float32) / 16.0
         # logging.info(f'SGBM Done. ({time.time() - t0:.3f}s)') #cp3.6
         logging.info('SGBM Done. (%.2fs)',(time.time() - t0)) #cp3.5
+        # print('SGBM Done. (%.2fs)'%(time.time() - t0))
         return self.disparity
 
 def disparity_centre(x_centre, y_centre, x_diff, y_diff, disparity,focal,baseline,pixel_size):
@@ -144,6 +145,7 @@ def stereo_sgbm(ImgLPath='../data/images/left.png',ImgRPath='../data/images/righ
     disparity = stereo.compute(imgL, imgR).astype(np.float32) / 16.0
     # logging.info(f'SGBM Done. ({time.time() - t0:.3f}s)') #cp3.6
     logging.info('SGBM Done. (%.2fs)',(time.time() - t0)) #cp3.5
+    print('SGBM Done. (%.2fs)'%(time.time() - t0)) #cp3.5
     return disparity
 
 def detect_disparity(ImgLPath='../data/images/Left1_rectified.bmp',ImgRPath='../data/images/Right1_rectified.bmp'):

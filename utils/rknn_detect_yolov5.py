@@ -163,7 +163,8 @@ class RKNNDetector:
         _img = cv2.cvtColor(_img, cv2.COLOR_BGR2RGB)
         t0 = time.time()
         pred_onx = self._rknn.inference(inputs=[_img])
-        print('inference time: (%.2fs)'%(time.time() - t0))
+        logging.info('inference time: (%.2fs)',(time.time() - t0))
+        # print('inference time: (%.2fs)'%(time.time() - t0))
         boxes, classes, scores = [], [], []
         for t in range(3):
             input0_data = sigmoid(pred_onx[t][0])

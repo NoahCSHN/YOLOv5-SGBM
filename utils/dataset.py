@@ -205,7 +205,7 @@ class loadcam:
         assert ret_val, 'Camera Error %d'%self.pipe #cp3.5
         img_path = 'webcam.jpg'
         # print(f'webcam {self.count}: ', end='') #cp3.6
-        # print('webcam %d: '%self.count, end='') #cp3.5
+        print('webcam %d: '%self.count) #cp3.5
         
         w = img0.shape[1]
         h = img0.shape[0]

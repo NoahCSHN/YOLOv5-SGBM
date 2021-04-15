@@ -34,7 +34,7 @@ def platform_init(bm_model=False, imgsz=640, device='pc'):
     CLASSES = DATASET_NAMES.voc_names
     if RKNNDetector.count != 0:
         del AI
-    AI = RKNNDetector(model='weights/best_640x640.rknn',wh=imgsz,masks=MASKS,anchors=ANCHORS,names=CLASSES)
+    AI = RKNNDetector(model='weights/best_416x416.rknn',wh=imgsz,masks=MASKS,anchors=ANCHORS,names=CLASSES)
 
     return AI,SM,config
 
@@ -52,7 +52,7 @@ def object_matching(ai_model,sm_model,camera_config,dataset,ratio,imgsz,debug):
     for path,img_left,img_right,img0,vid_cap in dataset:
         t0=time.time()
         real_time = time.asctime()
-        print('interval time (%.2fs)'%(t0-t1))
+        # print('interval time (%.2fs)'%(t0-t1))
         distance = []
         if dataset.mode == 'image':
             frame = str(dataset.count)
@@ -76,6 +76,7 @@ def object_matching(ai_model,sm_model,camera_config,dataset,ratio,imgsz,debug):
         # coords = coords.astype(int).tolist()
         index = 0
         for label,box,raw_box in zip(labels,coords,raw_coords):
+            t2=time.time()
             if len(box):
                 pred = []
                 cxcy = []
@@ -87,13 +88,17 @@ def object_matching(ai_model,sm_model,camera_config,dataset,ratio,imgsz,debug):
                 cxcy=[(cx-2*dw,cy-2*dh),(cx,cy-2*dh),(cx+2*dw,cy-2*dh),\
                     (cx-2*dw,cy),(cx,cy),(cx+2*dw,cy),\
                     (cx-2*dw,cy+2*dh),(cx,cy+2*dh),(cx+2*dw,cy+2*dh)]
-                        
+                t3 = time.time()
+                # print('before disparity centre: (%.3fs)'%(t3-t2))
+
             #%%%% TODO: 每个框计算深度均值
                 temp = np.zeros((9,),dtype=float)
                 k = 0
                 for m,n in cxcy:
                     temp[k] = disparity_centre(m, n, dx, dy, disparity, camera_config.focal_length, camera_config.baseline, camera_config.pixel_size)
                     k += 1
+                t4= time.time()
+                # print('disparity centre: (%.3fs)'%(t4-t3))
             
             #%%%% TODO: 取众多框计算值的中位数
                 temp = np.sort(temp)
@@ -101,6 +106,8 @@ def object_matching(ai_model,sm_model,camera_config,dataset,ratio,imgsz,debug):
                 logging.debug('depth: %f',float(temp[4])) #cp3.5
                 depth.append(temp[4])
                 distance.append([label,int(box[0]),int(box[1]),int(box[2]),int(box[3]),int(depth[0])])
+                t5= time.time()
+                # print('append: (%.3fs)'%(t5-t4))
                 
 
             #%%%% TODO: 将最终深度结果画到图像里
@@ -149,25 +156,11 @@ def object_matching(ai_model,sm_model,camera_config,dataset,ratio,imgsz,debug):
                 f.write(line)
                 print('--------------------'+line,end='')
         # logging.info(f'frame: {frame} Done. ({time.time() - t0:.3f}s)') #cp3.6
+        print('frame: %s Done. (%.2fs)'%(frame,(time.time()-t1))) #cp3.5
         t1=time.time()
-        print('frame: %s Done. (%.2fs)'%(frame,(t1-t0))) #cp3.5
 
 #%% main
-if __name__ == '__main__':
-    tt0=time.time()
-    # parameter input with model start up
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--source", help="The data source for model input", type=str, default='./data/indoor')
-    parser.add_argument("--img_size", help="The data size for model input", type=int, default=[640,640])
-    parser.add_argument("--cam_freq", help="The webcam frequency", type=int, default=5)
-    parser.add_argument("--ratio", help="ratio for distance calculate", type=float, default=0.05)
-    parser.add_argument("--device", help="device on which model runs", type=str,default='pc')
-    parser.add_argument("--verbose", help="increase output verbosity", action="store_true")
-    parser.add_argument("--webcam", help="connect to real camera", action="store_true")
-    parser.add_argument("--BM", help="switch to BM alogrithm for depth inference", action="store_true")                    
-    parser.add_argument("--debug", help="run under debug mode", action="store_true")
-    parser.add_argument("--save_path",help="path for result saving",type=str,default="runs/detect/test")                    
-    args = parser.parse_args()
+def main():
     print(args)
     if args.verbose:
         logging.basicConfig(filename=os.path.join(args.save_path,'log.txt'),
@@ -193,4 +186,24 @@ if __name__ == '__main__':
     object_matching(AI,SM,camera_config,dataset,ratio,imgsz,debug)
     tt1=time.time()
     print('All Done using (%.2fs)'%(tt1-tt0))
+
+#%% input port
+if __name__ == '__main__':
+    tt0=time.time()
+    # parameter input with model start up
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--source", help="The data source for model input", type=str, default='./data/indoor')
+    parser.add_argument("--img_size", help="The data size for model input", type=int, default=[416,416])
+    parser.add_argument("--cam_freq", help="The webcam frequency", type=int, default=5)
+    parser.add_argument("--ratio", help="ratio for distance calculate", type=float, default=0.05)
+    parser.add_argument("--device", help="device on which model runs", type=str,default='pc')
+    parser.add_argument("--verbose", help="increase output verbosity", action="store_true")
+    parser.add_argument("--webcam", help="connect to real camera", action="store_true")
+    parser.add_argument("--BM", help="switch to BM alogrithm for depth inference", action="store_true")                    
+    parser.add_argument("--debug", help="run under debug mode", action="store_true")
+    parser.add_argument("--save_path",help="path for result saving",type=str,default="runs/detect/test")                    
+    args = parser.parse_args()
+    # %% 创建局部函数，加快代码运行
+    main()
+
     

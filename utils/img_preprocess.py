@@ -225,10 +225,10 @@ def Image_Rectification(camera_config, img_left, img_right, imgsz=640, path=Fals
     # cv2.imwrite('/home/bynav/AI_SGBM/runs/detect/exp/Right1_rectified.bmp', imr_rectified)
     # print(Q)
  
-    if debug:
+    # if debug:
     # 绘制等间距平行线，检查立体校正的效果
-        line = draw_line(iml_rectified, imr_rectified)
-        cv2.imwrite('/home/bynav/RK3399/AI_SGBM/runs/detect/test/line.png', line)
+        # line = draw_line(iml_rectified, imr_rectified)
+        # cv2.imwrite('/home/bynav/RK3399/AI_SGBM/runs/detect/test/line.png', line)
  
     # 立体匹配
     # iml_rectified, imr_rectified = preprocess(iml_rectified, imr_rectified)  # 预处理，一般可以削弱光照不均的影响，不做也可以
@@ -244,8 +244,8 @@ def Image_Rectification(camera_config, img_left, img_right, imgsz=640, path=Fals
     # 显示点云
     # view_cloud(pointcloud()
     # logging.info(f'Image rectification Done. ({time.time() - t0:.3f}s)')   #cp3.6
-    # logging.info('Image rectification Done. %.2fs',(time.time() - t0))   #cp3.5
-    print('Image rectification Done. (%.2fs)'%(time.time() - t0))   #cp3.5
+    logging.info('Image rectification Done. (%.2fs)',(time.time() - t0))   #cp3.5
+    # print('Image rectification Done. (%.2fs)'%(time.time() - t0))   #cp3.5
     return iml_rectified,imr_rectified,img_ai_raw
 
 if __name__ == '__main__':
