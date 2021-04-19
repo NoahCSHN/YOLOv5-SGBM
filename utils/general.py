@@ -3,10 +3,11 @@ Author  : Noah
 Date    : 20210408
 function: common-basic function database
 '''
-import os,sys,logging,cv2,time
+import os,sys,logging,cv2,time,functools
 from pathlib import Path
 import numpy as np
 from contextlib import contextmanager
+from utils.rknn_detect_yolov5 import AutoScale
 
 def scale_coords(img1_shape, coords, img0_shape, ratio_pad=None):
     # Rescale coords (xyxy) from img1_shape to img0_shape
@@ -50,12 +51,12 @@ def confirm_dir(root_path,new_path):
     return path
 
 def timethis(func):
-    @wraps(func)
+    @functools.wraps(func)
     def wrapper(*args, **kwargs):
         start = time.perf_counter()
         r = func(*args, **kwargs)
         end = time.perf_counter()
-        print('{}.{} : {}'.format(func.__module__, func.__name__, end - start))
+        print('{}.{} : {:.3f}'.format(func.__module__, func.__name__, end - start))
         return r
     return wrapper
 

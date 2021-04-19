@@ -2,7 +2,6 @@ import cv2
 import time,logging,random,os,sys
 import numpy as np
 from rknn.api.rknn import RKNN
-from utils.dataset import loadfiles
 
 """
 yolov5 预测脚本 for rknn
@@ -10,13 +9,19 @@ yolov5 预测脚本 for rknn
 
 
 def get_max_scale(img, max_w, max_h):
-    h, w = img.shape[:2]
+    if type(img) == cv2.UMat:
+        h, w = img.get().shape[:2]
+    else:
+        h, w = img.shape[:2]
     scale = min(max_w / w, max_h / h, 1)
     return scale
 
 
 def get_new_size(img, scale):
-    return tuple(map(int, np.array(img.shape[:2][::-1]) * scale))
+    if type(img) != cv2.UMat:
+        return tuple(map(int, np.array(img.shape[:2][::-1]) * scale))
+    else:
+        return tuple(map(int, np.array(img.get().shape[:2][::-1]) * scale))
 
 
 class AutoScale:
@@ -95,11 +100,13 @@ def plot_one_box(x, img, color=None, label=None, line_thickness=None):
         cv2.rectangle(img, c1, c2, color, -1, cv2.LINE_AA)  # filled
         cv2.putText(img, label, (c1[0], c1[1] - 2), 0, tl / 3, [225, 255, 255], thickness=tf, lineType=cv2.LINE_AA)
 
-
 def letterbox(img, new_wh=(416, 416), color=(114, 114, 114)):
     a = AutoScale(img, *new_wh)
     new_img = a.new_img
-    h, w = new_img.shape[:2]
+    if type(new_img) == cv2.UMat:
+        h, w = new_img.get().shape[:2]
+    else:
+        h, w = new_img.shape[:2]
     padding = [(new_wh[1] - h)-int((new_wh[1] - h)/2), int((new_wh[1] - h)/2), (new_wh[0] - w)-int((new_wh[0] - w)/2), int((new_wh[0] - w)/2)]
     # new_img = cv2.copyMakeBorder(new_img, 0, new_wh[1] - h, 0, new_wh[0] - w, cv2.BORDER_CONSTANT, value=color)
     new_img = cv2.copyMakeBorder(new_img, padding[0], padding[1], padding[2], padding[3], cv2.BORDER_CONSTANT, value=color)
@@ -269,6 +276,7 @@ class RKNNDetector:
 
 
 if __name__ == '__main__':
+    from utils.dataset import loadfiles
     RKNN_MODEL_PATH = "../weights/best.rknn"
     IMG_PATH = '../data/test08'
     SIZE = (640, 640)

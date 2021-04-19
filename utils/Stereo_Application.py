@@ -2,6 +2,7 @@ import numpy as np
 import argparse,logging,time
 import cv2
 from matplotlib import pyplot as plt
+from utils.general import timethis
 
 class Cursor:
     def __init__(self, ax):
@@ -73,16 +74,20 @@ class SGBM:
     def __del__(self):
         class_name=self.__class__.__name__
         print (class_name,"release")
-        
+    
+    # @timethis
     def run(self,ImgL,ImgR):
         t0 = time.time()
-        self.imgL = ImgL
-        self.imgR = ImgR
+        # self.imgL = ImgL
+        # self.imgR = ImgR
         # logging.info(f'Images Inital Done. ({time.time() - t0:.3f}s)') #cp3.6
         # logging.info('Images Inital Done. (%.2fs)',(time.time() - t0)) #cp3.5
-        self.disparity = self.stereo.compute(self.imgL, self.imgR, False).astype(np.float32) / 16.0
+        if type(ImgL) == cv2.UMat:
+            self.disparity = self.stereo.compute(ImgL, ImgR, False).get().astype(np.float32) / 16.0
+        else:
+            self.disparity = self.stereo.compute(ImgL, ImgR, False).astype(np.float32) / 16.0
         # logging.info(f'SGBM Done. ({time.time() - t0:.3f}s)') #cp3.6
-        logging.info('SGBM Done. (%.2fs)',(time.time() - t0)) #cp3.5
+        # logging.info('SGBM Done. (%.2fs)',(time.time() - t0)) #cp3.5
         # print('SGBM Done. (%.2fs)'%(time.time() - t0))
         return self.disparity
 
@@ -118,6 +123,7 @@ def disparity_centre(x_centre, y_centre, x_diff, y_diff, disparity,focal,baselin
         depth = -1
     return depth
 
+# %% standalone usage function
 def stereo_sgbm(ImgLPath='../data/images/left.png',ImgRPath='../data/images/right.png', path=True):
     t0 = time.time()
     imgL = cv2.imread(ImgLPath)
