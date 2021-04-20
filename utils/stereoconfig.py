@@ -36,11 +36,14 @@ class stereoCamera(object):
         # 平移矩阵
         self.T = np.array([[-44.7734208533592], [0.329530613742665], [-0.453620226449132]])
  
-        # 焦距 unit:pixel ，1280*720 949.62 640*640 474.81 416*416 316.54
-        self.focal_length = 316.54  # 默认值，一般取立体校正后的重投影矩阵Q中的 Q[2,3]
- 
+        # 焦距 unit: resolution ratio ，1280*720 949.62 640*640 474.81 416*416 316.54
+        self.focal_length = 316.54  
+
+        # 焦距 unit:pixel 949.62
+        self.focal_length_pix = 949.62  # 默认值，一般取立体校正后的重投影矩阵Q中的 Q[2,3]
+
         # 基线距离
         self.baseline = 44.7734208533592  # 单位：mm， 为平移向量的第一个参数（取绝对值）
         
         # pixel size unit: mm
-        self.pixel_size = 0.0003
+        self.pixel_size = 0.00375

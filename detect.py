@@ -3,7 +3,7 @@
 Author  : Noah
 Date    : 20210408
 function: main function for YOLOv5 + SGBM model running on RK3399pro platform
-version :21041902
+version : 21041902
 '''
 import os,logging,sys,argparse,time
 
@@ -49,6 +49,10 @@ def LoadData(source='', webcam=False, cam_freq=5, imgsz=(640,640), save_path='')
 
 # %% obejct detection and matching
 def object_matching(ai_model,sm_model,camera_config,dataset,ratio,imgsz,debug,UMat):
+    fx = camera_config.cam_matrix_left[0,0]
+    fy = camera_config.cam_matrix_left[1,1]
+    v = camera_config.cam_matrix_left[0,2]
+    u = camera_config.cam_matrix_left[1,2]
     t1 = time.time()
     real_time = time.asctime()
     for path,img_left,img_right,img0,vid_cap in dataset:
@@ -58,7 +62,7 @@ def object_matching(ai_model,sm_model,camera_config,dataset,ratio,imgsz,debug,UM
             frame = str(dataset.count)
         else:
             frame = str(dataset.count)+'-'+str(dataset.frame)
-        img_left, img_right, img_ai=Image_Rectification(camera_config, img_left, img_right, imgsz=imgsz,debug=True,UMat=UMat)
+        img_left, img_right, img_ai, raw_img_shape=Image_Rectification(camera_config, img_left, img_right, imgsz=imgsz,debug=True,UMat=UMat)
         disparity=sm_model.run(img_left,img_right)
         preds, img_shape = ai_model.predict(img_ai)
         # assert len(labels) == len(boxes),'predict labels not matching boxes'
@@ -101,7 +105,8 @@ def object_matching(ai_model,sm_model,camera_config,dataset,ratio,imgsz,debug,UM
                 logging.debug('depth: %f',float(temp[4])) #cp3.5
                 depth.append(temp[4])
                 if (temp[4] >= args.out_range[0]*1000) & (temp[4] <= args.out_range[1]*1000):
-                    distance.append([label,int(box[0]),int(box[1]),int(box[2]),int(box[3]),int(depth[0])])
+                    # distance.append([label,int(box[0]),int(box[1]),int(box[2]),int(box[3]),int(depth[0])-camera_config.focal_length]) # raw boxes and depth
+                    distance.append([label,float((box[0]*depth[0]-v)/fx),float((box[3]*depth[0]-u)/fy),float((box[2]*depth[0]-v)/fx),float((box[3]*depth[0]-u)/fy),int(depth[0])]) # two bottum corner and distance to image plane
 
             #%%%% TODO: 将最终深度结果画到图像里
                 if debug:

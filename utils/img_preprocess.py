@@ -145,7 +145,7 @@ def Image_Rectification(camera_config, img_left, img_right, imgsz=640, path=Fals
     # logging.info(f'Image rectification Done. ({time.time() - t0:.3f}s)')   #cp3.6
     logging.info('Image rectification Done. (%.2fs)',(time.time() - t0))   #cp3.5
     # print('Image rectification Done. (%.2fs)'%(time.time() - t0))   #cp3.5
-    return iml_rectified,imr_rectified,img_ai_raw
+    return iml_rectified,imr_rectified,img_ai_raw,(height,width)
 
 if __name__ == '__main__':
     config = stereoCamera()
