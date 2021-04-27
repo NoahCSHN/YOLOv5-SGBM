@@ -143,64 +143,63 @@ def netdata_pipe(server_soc, videoWriter, pub):
     # connected_clients_sockets = []
     # connected_clients_sockets.append(server_soc) 
     block=1024 #1280*720
+    conn, client_address = server_soc.accept()
+    print('connect from:' + str(client_address))
     while True:
         start = time.time()
-        # try:
-        # read_sockets, _, _ = select.select(connected_clients_sockets, [], [])
-        # for sock in read_sockets:
-        #     if sock == server_soc:
-        conn, client_address = server_soc.accept()
-            # connected_clients_sockets.append(conn)
-        # conn.settimeout(0.001)
-        print('connect from:' + str(client_address))
-        image_size=0
-        coords=[]
-        img_flag = False
-        
-        stringData = conn.recv(block)#nt()只能转化由纯数字组成的字符串
-        if stringData != b'':
-            # print('check point 1',stringData.startswith(b'$Image'))
-            # try:
-            if stringData.startswith(b'$Image'):
-                stringData = stringData.decode()
-                image_size=int(stringData.split(',')[1])
-                # print(stringData)
-                coords = []
-                if opt.image:
-                    conn.sendall('Ready for Image'.encode('utf-8'))
-                    stringData = recvall(conn, (image_size))#nt()只能转化由纯数字组成的字符串
-                    # print('check point 2',stringData == b'')
-                    img = numpy.frombuffer(stringData,numpy.uint8)  # 将获取到的字符流数据转换成1维数组 data = numpy.fromstring()           numpy.frombuffer
-                    decimg = cv2.imdecode(img, cv2.IMREAD_COLOR)  # 将数组解码成图像
-                    pub.pub_img(decimg)
-                    
-                # if opt.image:
-                #     cv2.imshow('SERVER', decimg)  # 显示图像
-                #     if cv2.waitKey(1) == ord('q'):
-                #         break 
-                # videoWriter.write(decimg)
-                conn.sendall('Ready for Coordinates'.encode('utf-8'))
-                stringData = conn.recv(block)#nt()只能转化由纯数字组成的字符串
-                # print('check point 3',stringData == b'')
-                stringData = stringData.decode()
-                # print(stringData)
-                coords=stringData.split(',')[1:-1]
-                # for i in range(len(coords)):
-                #     print(coords[i])
-                assert len(coords) % 6 == 0,'coords length error'
-                conn.sendall('Ready for next Frame'.encode('utf-8'))
-                pub.pub_axis(coords,1,(len(coords)/6))
-                conn.close()
-                # =================================================================================================================================  
-                time.sleep(0.005)
-                print('process time = ', (time.time()-start))
-                # =================================================================================================================================
-            else:
-                continue
-        # except KeyboardInterrupt:
-        #     if conn:
-        #         conn.close()  
-        #     break       
+        try:
+            # read_sockets, _, _ = select.select(connected_clients_sockets, [], [])
+            # for sock in read_sockets:
+            #     if sock == server_soc:
+                # connected_clients_sockets.append(conn)
+            # conn.settimeout(0.001)
+            image_size=0
+            coords=[]
+            img_flag = False
+            
+            stringData = conn.recv(block)#nt()只能转化由纯数字组成的字符串
+            if stringData != b'':
+                # print('check point 1',stringData.startswith(b'$Image'))
+                # try:
+                if stringData.startswith(b'$Image'):
+                    stringData = stringData.decode()
+                    image_size=int(stringData.split(',')[1])
+                    # print(stringData)
+                    coords = []
+                    if opt.image:
+                        conn.sendall('Ready for Image'.encode('utf-8'))
+                        stringData = recvall(conn, (image_size))#nt()只能转化由纯数字组成的字符串
+                        # print('check point 2',stringData == b'')
+                        img = numpy.frombuffer(stringData,numpy.uint8)  # 将获取到的字符流数据转换成1维数组 data = numpy.fromstring()           numpy.frombuffer
+                        decimg = cv2.imdecode(img, cv2.IMREAD_COLOR)  # 将数组解码成图像
+                        pub.pub_img(decimg)
+                        
+                    # if opt.image:
+                    #     cv2.imshow('SERVER', decimg)  # 显示图像
+                    #     if cv2.waitKey(1) == ord('q'):
+                    #         break 
+                    # videoWriter.write(decimg)
+                    conn.sendall('Ready for Coordinates'.encode('utf-8'))
+                    stringData = conn.recv(block)#nt()只能转化由纯数字组成的字符串
+                    # print('check point 3',stringData == b'')
+                    stringData = stringData.decode()
+                    # print(stringData)
+                    coords=stringData.split(',')[1:-1]
+                    # for i in range(len(coords)):
+                    #     print(coords[i])
+                    assert len(coords) % 6 == 0,'coords length error'
+                    conn.sendall('Ready for next Frame'.encode('utf-8'))
+                    pub.pub_axis(coords,1,(len(coords)/6))
+                    # =================================================================================================================================  
+                    time.sleep(0.05)
+                    print('process time = ', (time.time()-start))
+                    # =================================================================================================================================
+                else:
+                    continue
+        except KeyboardInterrupt:
+            if conn:
+                conn.close()  
+            break    
     print('network done')
 
 

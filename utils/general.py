@@ -127,9 +127,14 @@ class socket_client():
         @Returns  : None
         -------
         """
-        
-        
         self.address = address
+        try:
+            self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            self.sock.connect(self.address)
+        except socket.error as msg:
+            self.sock = None
+            print(msg)
+            sys.exit(1)         
     
     def send(self,image,coords,fps,imgsz=(416,416),debug=False):
         """
@@ -149,13 +154,6 @@ class socket_client():
         t0=time.time()
         answer = []
 
-        try:
-            self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            self.sock.connect(self.address)
-        except socket.error as msg:
-            self.sock = None
-            print(msg)
-            sys.exit(1) 
         # print('Start image and coordinate transformation')
         if debug:
             encode_param = [int(cv2.IMWRITE_JPEG_QUALITY), fps]
@@ -203,7 +201,7 @@ class socket_client():
             answer = self.sock.recv(32).decode('utf-8')
         # print('Recv from server: %s'%answer)
         print('TCP transport use: %0.3f'%(time.time()-t0))
-        self.sock.close()
+        # self.sock.close()
     
     def close(self):
         if self.sock:
@@ -211,4 +209,4 @@ class socket_client():
             self.sock.close()
     
     def __del__(self):
-        server_client.close()
+        self.close()

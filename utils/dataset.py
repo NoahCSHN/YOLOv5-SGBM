@@ -174,9 +174,9 @@ class loadcam:
         self.pipe = pipe
         self.writer = None
         self.cap = cv2.VideoCapture(pipe)  # video capture object
-        self.cap.set(cv2.CAP_PROP_BUFFERSIZE, 3)  # set buffer size
+        self.cap.set(cv2.CAP_PROP_BUFFERSIZE, 2)  # set buffer size
         self.cap.set(cv2.CAP_PROP_FRAME_WIDTH,2560)
-        self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT,720)
+        self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT,960)
         self.cap.set(cv2.CAP_PROP_FPS,cam_freq)
         self.cam_freq = cam_freq
         self.fps = self.cap.get(cv2.CAP_PROP_FPS)

@@ -112,7 +112,7 @@ def object_matching(ai_model,sm_model,camera_config,dataset,ratio,imgsz,fps,debu
     t1 = time.time()
     real_time = time.asctime()
     for _,img_left,img_right,_,_ in dataset:
-        # print('interval time (%.2fs)'%(time.time()-t1))
+        t0 = time.time()
         distance = []
         if dataset.mode == 'image' or dataset.mode == 'webcam':
             frame = str(dataset.count)
@@ -171,14 +171,14 @@ def object_matching(ai_model,sm_model,camera_config,dataset,ratio,imgsz,fps,debu
                     xyxy = [box[0],box[1],box[2],box[3]]
                     # label = f'{label}' #cp3.6
                     label = str(label) #cp3.5
-                    plot_one_box(xyxy, img_ai, label=label, line_thickness=2)
+                    plot_one_box(xyxy, img_ai, label=label, line_thickness=3)
                     xyxy = [int((box[0]+box[2])/2)-2*int((box[2]-box[0])*ratio),\
                             int((box[1]+box[3])/2)-2*int((box[3]-box[1])*ratio),\
                             int((box[0]+box[2])/2)+2*int((box[2]-box[0])*ratio),\
                             int((box[1]+box[3])/2)+2*int((box[3]-box[1])*ratio)]
                     # label = f'{depth[0]:.2f}' #cp3.6
                     label = str(round(depth[0],2)) #cp3.5
-                    plot_one_box(xyxy, img_ai, label=label, line_thickness=1)             
+                    plot_one_box(xyxy, img_ai, label=label, line_thickness=3)             
                 index += 1
             #%%%% TODO: 保存结果
         if debug:
@@ -213,7 +213,9 @@ def object_matching(ai_model,sm_model,camera_config,dataset,ratio,imgsz,fps,debu
                 f.write(line)
                 # print('--------------------'+line,end='')
         # logging.info(f'frame: {frame} Done. ({time.time() - t0:.3f}s)') #cp3.6
-        print('frame: %s Done. (%.3fs)'%(frame,(time.time()-t1))) #cp3.5
+        if debug:
+            print('frame: %s Done. (%.3fs)'%(frame,(time.time()-t1)),end='') #cp3.5
+            print(' --Process: use (%.3fs)'%(time.time()-t0)) #cp3.5
         t1=time.time()
         real_time = time.asctime()
         soc_client.send(img_ai, distance, fps, imgsz, debug)
