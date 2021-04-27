@@ -100,6 +100,27 @@ def resize_convert(imgl_rectified, imgr_rectified, imgsz=640, stride=32):
  
 # @timethis
 def Image_Rectification(camera_config, img_left, img_right, imgsz=640, path=False, debug=False, UMat=False):
+    """
+    @description  : stereo camera calibration
+    ---------
+    @param  : 
+        camera_config: type class stereoCamera, stereo camera calibration parameters
+        img_left: type array, image from the left camera
+        img_right: type array, image from the right camera
+        imgsz: type tuple (int,int), used by Image_Rectification function resize images for SGBM to the same size as image for object detection
+        path: type bool, if true, the img_left and img_right type are string,as image file path 
+        debug: type bool, reserved
+        UMat: type bool, if true, use GPU accelarating SGBM and image rectification process
+    -------
+    @Returns  :
+        iml_rectified: type array, left image for SGBM
+        imr_rectified: type array, right image for SGBM
+        img_ai_raw: type array, image for object detection
+        (height,width): type tuple(int,int), reserved
+    -------
+    """
+    
+    
     # 读取MiddleBurry数据集的图片
     t0 = time.time()
     if path:
@@ -123,7 +144,7 @@ def Image_Rectification(camera_config, img_left, img_right, imgsz=640, path=Fals
     # 立体校正
     map1x, map1y, map2x, map2y, Q = getRectifyTransform(height, width, config)  # 获取用于畸变校正和立体校正的映射矩阵以及用于计算像素空间坐标的重投影矩阵
     iml_rectified, imr_rectified = rectifyImage(iml, imr, map1x, map1y, map2x, map2y)
-    if type(iml_rectified) == cv2.UMat:
+    if UMat:
         img_ai_raw = cv2.UMat.get(iml_rectified)
     else:
         img_ai_raw = iml_rectified
@@ -138,7 +159,7 @@ def Image_Rectification(camera_config, img_left, img_right, imgsz=640, path=Fals
     # if debug:
     # 绘制等间距平行线，检查立体校正的效果
         # line = draw_line(iml_rectified, imr_rectified)
-        # cv2.imwrite('/home/bynav/RK3399/AI_SGBM/runs/detect/test/line.png', line)
+        # cv2.imwrite('./runs/detect/test/line.png', line)
  
     # 显示点云
     # view_cloud(pointcloud()

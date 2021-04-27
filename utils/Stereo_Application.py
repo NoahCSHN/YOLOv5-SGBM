@@ -26,7 +26,12 @@ class Cursor:
         self.ax.figure.canvas.draw()
 
 class BM:
-    'BM Algorithm class'
+    """
+    @description  : 'BM Algorithm class'
+    ---------
+    @function  :
+    -------
+    """
     count=0
     def __init__(self):
         t0 = time.time()
@@ -48,7 +53,12 @@ class BM:
         
         
 class SGBM:
-    'SGBM Algorithm Class'
+    """
+    @description  : 'SGBM Algorithm Class'
+    ---------
+    @function  :
+    -------
+    """  
     count=0
     def __init__(self):
         t0 = time.time()
@@ -92,6 +102,20 @@ class SGBM:
         return self.disparity
 
 def disparity_centre(x_centre, y_centre, x_diff, y_diff, disparity,focal,baseline,pixel_size):
+    """
+    @description  : from disparity map get the depth prediction of the (x_centre,y_centre) point
+    ---------
+    @param  :
+        (x_centre,y_centre): type (int,int), the coordinate in pixel for depth prediction
+        (x_diff,y_diff): type (int,int), the unit in pixel for depth calculation
+        disparity: type array, disparity map
+        focal: focal length in pixel unit 
+        baseline: baseline in mm unit
+        pixel_size: pixel_size in mm unit
+    -------
+    @Returns  :
+    -------
+    """
     p=[-2,-1,0,1,2]
     d=np.zeros((25,),dtype=float)
     # dis_mean=np.zeros((1,),dtype=float) #disparity calculate

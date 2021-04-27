@@ -16,6 +16,14 @@ img_formats = ['bmp', 'jpg', 'jpeg', 'png', 'tif', 'tiff', 'dng', 'webp']  # acc
 vid_formats = ['mov', 'avi', 'mp4', 'mpg', 'mpeg', 'm4v', 'wmv', 'mkv']  # acceptable video suffixes
 
 class DATASET_NAMES():
+    """
+    @description  :pre define the object class name for object detection
+    ---------
+    @function  : None
+    -------
+    """
+    
+    
     voc_names = ['aeroplane', 'bicycle', 'bird', 'boat', 'bottle', 'bus', 'car', 'cat', 'chair', 'cow', 'diningtable', 'dog',
          'horse', 'motorbike', 'person', 'pottedplant', 'sheep', 'sofa', 'train', 'tvmonitor']
     coco_names = ['person', 'bicycle', 'car', 'motorcycle', 'airplane', 'bus', 'train', 'truck', 'boat', 'traffic light',
@@ -29,8 +37,17 @@ class DATASET_NAMES():
                     'hair drier', 'toothbrush']
     masks_names = ['mask','nomask']
     voc_split_names = ['bottle','chair','diningtable','person','pottedplant','sofa','tvmonitor']
+    coco_split_names = ['person','sports ball','bottle','cup','chair','potted plant','cell phone', 'book']
 
 class loadfiles:
+    """
+    @description  : load iamge or video file(s) and create a iterator
+    ---------
+    @function  :
+    -------
+    """
+    
+    
     def __init__(self, path='', img_size=640, save_path=''):
         p = str(Path(path).absolute())  # os-agnostic absolute path
         if '*' in p:
@@ -138,6 +155,14 @@ class loadfiles:
         return self.nf  # number of files
 
 class loadcam:
+    """
+    @description  : load real-time webcam data and create a iterator
+    ---------
+    @function  :
+    -------
+    """
+    
+    
     def __init__(self, pipe='4', cam_freq=5, img_size=640, save_path=''):
         self.img_size = img_size
         if pipe.isnumeric():
@@ -153,6 +178,8 @@ class loadcam:
         self.cap.set(cv2.CAP_PROP_FRAME_WIDTH,2560)
         self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT,720)
         self.cap.set(cv2.CAP_PROP_FPS,cam_freq)
+        self.cam_freq = cam_freq
+        self.fps = self.cap.get(cv2.CAP_PROP_FPS)
         self.vid_file_path = os.path.join(save_path,'webcam')
         if not os.path.isdir(self.vid_file_path):
             os.mkdir(self.vid_file_path)
@@ -186,8 +213,17 @@ class loadcam:
         # t1=time.time()
         # print('wait interrupt spend: (%.2fs)'%(t1-t0))
         # Read frame
-        if self.pipe == 4:  # local camera
-            ret_val, img0 = self.cap.read()
+        if self.pipe in [0,1,2,3,4,5]:  # local camera
+            if  self.fps > self.cam_freq:
+                num = int(self.fps/self.cam_freq)
+                n = 0
+                while True:
+                    n += 1
+                    ret_val, img0 = self.cap.read()
+                    if n % num == 0:
+                        if ret_val:
+                            break
+            
             # img0 = cv2.flip(img0, 1)  # flip left-right
         else:  # IP camera
             n = 0

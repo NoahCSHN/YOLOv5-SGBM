@@ -36,7 +36,7 @@ class stereoCamera(object):
         # 平移矩阵
         self.T = np.array([[-44.7734208533592], [0.329530613742665], [-0.453620226449132]])
  
-        # 焦距 unit: resolution ratio ，1280*720 949.62 640*640 474.81 416*416 316.54
+        # 焦距 unit:pixel resolution ratio ，1280*720 949.62 640*640 474.81 416*416 316.54
         self.focal_length = 316.54  
 
         # 焦距 unit:pixel 949.62

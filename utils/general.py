@@ -3,13 +3,28 @@ Author  : Noah
 Date    : 20210408
 function: common-basic function database
 '''
-import os,sys,logging,cv2,time,functools
+import os,sys,logging,cv2,time,functools,socket
 from pathlib import Path
 import numpy as np
 from contextlib import contextmanager
-from utils.rknn_detect_yolov5 import AutoScale
+from utils.rknn_detect_yolov5 import AutoScale,letterbox
 
 def scale_coords(img1_shape, coords, img0_shape, ratio_pad=None):
+    """
+    @description  :change pixel coordinates in the img1_shape to img0_shape
+    ---------
+    @param  :
+        img1_shape: type tuple(int,int), the image size of the coords
+        coords: type numpy.array, the coords for translation
+        img0_shape: type tuple(int,int), the expected image size of the coords after translation
+        ratio_pad: type tuple(int,(int,int)), tuple(0) is the resize ratio, tuple(1,0) is the x padding, tuple(1,1) is the y padding
+    -------
+    @Returns  :
+        coords: type numpy.array, the coordinates in img1_shape
+    -------
+    """
+    
+    
     # Rescale coords (xyxy) from img1_shape to img0_shape
     if ratio_pad is None:  # calculate from img0_shape
         gain = min(img1_shape[0] / img0_shape[0], img1_shape[1] / img0_shape[1])  # gain  = old / new
@@ -41,16 +56,32 @@ def clip_axis(axis,limit):
     return axis
 
 def confirm_dir(root_path,new_path):
-    # pwd = os.getcwd()
-    # real_root = os.path.abspath(root_path)
-    # relpath = os.path.relpath(pwd,root_path)
-
+    """
+    @description  :make sure path=(root_path+new_path) exist
+    ---------
+    @param  :
+        root_path: type string, 
+        new_path: type string,
+    -------
+    @Returns  :
+    -------
+    """
+    
+    
     path = os.path.join(root_path,new_path)
     if not os.path.isdir(path):
         os.mkdir(path)
     return path
 
 def timethis(func):
+    """
+    @description  : a timecounter wrapper for a function
+    ---------
+    @param  :
+    -------
+    @Returns  : print the runtime and name of the function to the terminal 
+    -------
+    """
     @functools.wraps(func)
     def wrapper(*args, **kwargs):
         start = time.perf_counter()
@@ -62,9 +93,122 @@ def timethis(func):
 
 @contextmanager
 def timeblock(label):
+    """
+    @description  : a timecounter wrapper for a section of code
+    ---------
+    @param  :
+    -------
+    @Returns  : print the runtime of a section of code to the terminal 
+    -------
+    """   
     start = time.perf_counter()
     try:
         yield
     finally:
         end = time.perf_counter()
         print('{} : {}'.format(label, end - start))
+
+
+class socket_client():
+    """
+    @description  : handle tcp event
+    ---------
+    @function  :
+    -------
+    """
+    
+    
+    def __init__(self,address=('192.168.3.181',9191)):
+        """
+        @description  : obtain and save the tcp client address
+        ---------
+        @param  : address: server address, in default taple format
+        -------
+        @Returns  : None
+        -------
+        """
+        
+        
+        self.address = address
+    
+    def send(self,image,coords,fps,imgsz=(416,416),debug=False):
+        """
+        @description  : send a packet to tcp server
+        ---------
+        @param  :
+            image: the cv2 image mat (imgsz[0],imgsz[1])
+            coords: the coords of the opposite angle of the object rectangle,(n,(x1,y1,z1,x2,y2,z2))
+            fps: the fps of the camera
+            imgsz: the image resolution(height,width)
+            debug: type bool, if true, add a image in imgsz shape to tcp transmission packet        
+        -------
+        @Returns  : None
+        -------
+        """
+        
+        t0=time.time()
+        answer = []
+
+        try:
+            self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            self.sock.connect(self.address)
+        except socket.error as msg:
+            self.sock = None
+            print(msg)
+            sys.exit(1) 
+        # print('Start image and coordinate transformation')
+        if debug:
+            encode_param = [int(cv2.IMWRITE_JPEG_QUALITY), fps]
+            ## 首先对图片进行编码，因为socket不支持直接发送图片
+            t1=time.time()
+            image,_,_ = letterbox(image,imgsz)
+            _, imgencode = cv2.imencode('.jpg', cv2.UMat(image))#
+            data = np.array(imgencode)
+            stringData = data.tostring()
+            print('image encode: (%s)'%(time.time()-t1))
+            ## 首先发送图片编码后的长度
+            self.sock.sendall(('$Image,'+str(len(stringData))).encode('utf-8').ljust(32)) 
+            # print('Send Image size done, waiting for answer')
+            while answer != 'Ready for Image':
+                answer = self.sock.recv(32).decode('utf-8')
+            # print('Recv from server: %s'%answer)
+            self.sock.sendall(stringData)
+            # print('Send Image done, waiting for answer')
+        else:
+            self.sock.sendall(('$Image,'+str('0')).encode('utf-8').ljust(32))
+        while answer != 'Ready for Coordinates':
+            answer = self.sock.recv(32).decode('utf-8')
+        # print('Recv from server: %s'%answer)
+
+        coordData = '$Coord'
+        for item in coords:
+            coordData += ','
+            coordData += str(item[1])
+            coordData += ','
+            coordData += str(item[2])
+            coordData += ','
+            coordData += str(item[5])
+            coordData += ','
+            coordData += str(item[3])
+            coordData += ','
+            coordData += str(item[4])
+            coordData += ','
+            coordData += str(item[5])
+        coordData += ',*FC'
+        ## 然后发送编码的内容
+        # print(coordData)
+        self.sock.sendall(coordData.encode('utf-8'))
+        # print('Send Coordinates, waiting for answer')
+        while answer != 'Ready for next Frame':
+            answer = self.sock.recv(32).decode('utf-8')
+        # print('Recv from server: %s'%answer)
+        print('TCP transport use: %0.3f'%(time.time()-t0))
+        self.sock.close()
+    
+    def close(self):
+        if self.sock:
+            print('closing tcp client ...')
+            self.sock.close()
+    
+    def __del__(self):
+        server_client.close()
