@@ -23,7 +23,6 @@ class DATASET_NAMES():
     -------
     """
     
-    
     voc_names = ['aeroplane', 'bicycle', 'bird', 'boat', 'bottle', 'bus', 'car', 'cat', 'chair', 'cow', 'diningtable', 'dog',
          'horse', 'motorbike', 'person', 'pottedplant', 'sheep', 'sofa', 'train', 'tvmonitor']
     coco_names = ['person', 'bicycle', 'car', 'motorcycle', 'airplane', 'bus', 'train', 'truck', 'boat', 'traffic light',
@@ -174,12 +173,15 @@ class loadcam:
         self.pipe = pipe
         self.writer = None
         self.cap = cv2.VideoCapture(pipe)  # video capture object
-        self.cap.set(cv2.CAP_PROP_BUFFERSIZE, 2)  # set buffer size
         self.cap.set(cv2.CAP_PROP_FRAME_WIDTH,2560)
-        self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT,960)
+        # self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT,960) #AR0135
+        self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT,720) #OV9714
         self.cap.set(cv2.CAP_PROP_FPS,cam_freq)
         self.cam_freq = cam_freq
         self.fps = self.cap.get(cv2.CAP_PROP_FPS)
+        bufsize = self.fps if self.fps <= 10 else 10
+        self.cap.set(cv2.CAP_PROP_BUFFERSIZE, self.fps)  # set buffer size
+        print('Camera run under %s fps'%(str(self.fps)))
         self.vid_file_path = os.path.join(save_path,'webcam')
         if not os.path.isdir(self.vid_file_path):
             os.mkdir(self.vid_file_path)
@@ -216,7 +218,7 @@ class loadcam:
         if self.pipe in [0,1,2,3,4,5]:  # local camera
             if  self.fps > self.cam_freq:
                 num = int(self.fps/self.cam_freq)
-                n = 0
+                n = -1
                 while True:
                     n += 1
                     ret_val, img0 = self.cap.read()

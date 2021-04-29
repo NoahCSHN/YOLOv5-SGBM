@@ -7,7 +7,51 @@ import os,sys,logging,cv2,time,functools,socket
 from pathlib import Path
 import numpy as np
 from contextlib import contextmanager
-from utils.rknn_detect_yolov5 import AutoScale,letterbox
+
+def get_new_size(img, scale):
+    if type(img) != cv2.UMat:
+        return tuple(map(int, np.array(img.shape[:2][::-1]) * scale))
+    else:
+        return tuple(map(int, np.array(img.get().shape[:2][::-1]) * scale))
+
+def get_max_scale(img, max_w, max_h):
+    if type(img) == cv2.UMat:
+        h, w = img.get().shape[:2]
+    else:
+        h, w = img.shape[:2]
+    scale = min(max_w / w, max_h / h, 1)
+    return scale
+
+class AutoScale:
+    def __init__(self, img, max_w, max_h):
+        self._src_img = img
+        self.scale = get_max_scale(img, max_w, max_h)
+        self._new_size = get_new_size(img, self.scale)
+        self.__new_img = None
+
+    @property
+    def size(self):
+        return self._new_size
+
+    @property
+    def new_img(self):
+        if self.__new_img is None:
+            self.__new_img = cv2.resize(self._src_img, self._new_size)
+        return self.__new_img
+
+def letterbox(img, new_wh=(416, 416), color=(114, 114, 114)):
+    a = AutoScale(img, *new_wh)
+    new_img = a.new_img
+    if type(new_img) == cv2.UMat:
+        h, w = new_img.get().shape[:2]
+    else:
+        h, w = new_img.shape[:2]
+    padding = [(new_wh[1] - h)-int((new_wh[1] - h)/2), int((new_wh[1] - h)/2), (new_wh[0] - w)-int((new_wh[0] - w)/2), int((new_wh[0] - w)/2)]
+    # new_img = cv2.copyMakeBorder(new_img, 0, new_wh[1] - h, 0, new_wh[0] - w, cv2.BORDER_CONSTANT, value=color)
+    new_img = cv2.copyMakeBorder(new_img, padding[0], padding[1], padding[2], padding[3], cv2.BORDER_CONSTANT, value=color)
+    # logging.debug(f'image padding: {padding}') #cp3.6
+    logging.debug('image padding: %s',padding) #cp3.5
+    return new_img, (new_wh[0] / a.scale, new_wh[1] / a.scale), padding
 
 def scale_coords(img1_shape, coords, img0_shape, ratio_pad=None):
     """
@@ -158,12 +202,12 @@ class socket_client():
         if debug:
             encode_param = [int(cv2.IMWRITE_JPEG_QUALITY), fps]
             ## 首先对图片进行编码，因为socket不支持直接发送图片
-            t1=time.time()
+            # t1=time.time()
             image,_,_ = letterbox(image,imgsz)
             _, imgencode = cv2.imencode('.jpg', cv2.UMat(image))#
             data = np.array(imgencode)
             stringData = data.tostring()
-            print('image encode: (%s)'%(time.time()-t1))
+            # print('image encode: (%s)'%(time.time()-t1))
             ## 首先发送图片编码后的长度
             self.sock.sendall(('$Image,'+str(len(stringData))).encode('utf-8').ljust(32)) 
             # print('Send Image size done, waiting for answer')

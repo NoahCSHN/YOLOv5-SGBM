@@ -36,7 +36,7 @@
 ## Simple talker demo that listens to std_msgs/Strings published 
 ## to the 'chatter' topic
 
-import rospy,re,argparse
+import rospy,re,argparse,sys
 from cv_bridge import CvBridge
 from sensor_msgs.msg import Image
 from geometry_msgs.msg import PolygonStamped,Point32
@@ -83,11 +83,11 @@ class rospublisher:
             coord_msg.header.frame_id=str(frame)
             for i in range(int(num)):
                 coord_msg.polygon.points.append(Point32())
-                coord_msg.polygon.points[4*i].x=float(coords[i*6+2])/1000
+                coord_msg.polygon.points[4*i].x=float(coords[i*6+2])/1000+abs((float(coords[i*6+0])/1000)-float(coords[i*6+3])/1000)
                 coord_msg.polygon.points[4*i].y=float(-float(coords[i*6+0])/1000)
                 coord_msg.polygon.points[4*i].z=float(coords[i*6+1])/1000
                 coord_msg.polygon.points.append(Point32())
-                coord_msg.polygon.points[4*i+1].x=float(coords[i*6+2])/1000+0.2
+                coord_msg.polygon.points[4*i+1].x=float(coords[i*6+2])/1000
                 coord_msg.polygon.points[4*i+1].y=float(-float(coords[i*6+0])/1000)
                 coord_msg.polygon.points[4*i+1].z=float(coords[i*6+1])/1000
                 coord_msg.polygon.points.append(Point32())
@@ -95,7 +95,7 @@ class rospublisher:
                 coord_msg.polygon.points[4*i+2].y=float(-float(coords[i*6+3])/1000)
                 coord_msg.polygon.points[4*i+2].z=float(coords[i*6+4])/1000
                 coord_msg.polygon.points.append(Point32())
-                coord_msg.polygon.points[4*i+3].x=float(coords[i*6+5])/1000+0.2
+                coord_msg.polygon.points[4*i+3].x=float(coords[i*6+5])/1000+abs((float(coords[i*6+0])/1000)-float(coords[i*6+3])/1000)
                 coord_msg.polygon.points[4*i+3].y=float(-float(coords[i*6+3])/1000)
                 coord_msg.polygon.points[4*i+3].z=float(coords[i*6+4])/1000
             
@@ -132,78 +132,61 @@ def netdata_pipe(server_soc, videoWriter, pub):
     @description  : recevie image from socket server
     ---------
     @param  :
-        conn: the handler of the socket server
+        server_soc: the handler of the socket server
         addr: address of socket server
         pub: the handler of the ROS node
     -------
     @Returns  : None
     -------
     """  
-
-    # connected_clients_sockets = []
-    # connected_clients_sockets.append(server_soc) 
-    block=1024 #1280*720
+    print('waiting for connect')
+    # while True:
+    #     try:
     conn, client_address = server_soc.accept()
-    print('connect from:' + str(client_address))
-    while True:
+    print('connect from:' + str(client_address))   
+        #     if conn:
+        #         break
+        # except KeyboardInterrupt as e:
+        #     break
+        # except socket.timeout as e:
+        #     continue
+    # conn.setblocking(False)         
+    block=1024 #1280*720
+    Connect = False
+    if conn:
+        Connect = True
+    while Connect:
         start = time.time()
-        try:
-            # read_sockets, _, _ = select.select(connected_clients_sockets, [], [])
-            # for sock in read_sockets:
-            #     if sock == server_soc:
-                # connected_clients_sockets.append(conn)
-            # conn.settimeout(0.001)
-            image_size=0
-            coords=[]
-            img_flag = False
-            
-            stringData = conn.recv(block)#nt()只能转化由纯数字组成的字符串
-            if stringData != b'':
-                # print('check point 1',stringData.startswith(b'$Image'))
-                # try:
-                if stringData.startswith(b'$Image'):
-                    stringData = stringData.decode()
-                    image_size=int(stringData.split(',')[1])
-                    # print(stringData)
-                    coords = []
-                    if opt.image:
-                        conn.sendall('Ready for Image'.encode('utf-8'))
-                        stringData = recvall(conn, (image_size))#nt()只能转化由纯数字组成的字符串
-                        # print('check point 2',stringData == b'')
-                        img = numpy.frombuffer(stringData,numpy.uint8)  # 将获取到的字符流数据转换成1维数组 data = numpy.fromstring()           numpy.frombuffer
-                        decimg = cv2.imdecode(img, cv2.IMREAD_COLOR)  # 将数组解码成图像
-                        pub.pub_img(decimg)
-                        
-                    # if opt.image:
-                    #     cv2.imshow('SERVER', decimg)  # 显示图像
-                    #     if cv2.waitKey(1) == ord('q'):
-                    #         break 
-                    # videoWriter.write(decimg)
-                    conn.sendall('Ready for Coordinates'.encode('utf-8'))
-                    stringData = conn.recv(block)#nt()只能转化由纯数字组成的字符串
-                    # print('check point 3',stringData == b'')
-                    stringData = stringData.decode()
-                    # print(stringData)
-                    coords=stringData.split(',')[1:-1]
-                    # for i in range(len(coords)):
-                    #     print(coords[i])
-                    assert len(coords) % 6 == 0,'coords length error'
-                    conn.sendall('Ready for next Frame'.encode('utf-8'))
-                    pub.pub_axis(coords,1,(len(coords)/6))
-                    # =================================================================================================================================  
-                    time.sleep(0.05)
-                    print('process time = ', (time.time()-start))
-                    # =================================================================================================================================
-                else:
-                    continue
-        except KeyboardInterrupt:
-            if conn:
-                conn.close()  
-            break    
-    print('network done')
+        image_size=0
+        coords=[]
+        img_flag = False
+        
+        stringData = conn.recv(block)#nt()只能转化由纯数字组成的字符串
 
-
-
+        if stringData != b'':
+            if stringData.startswith(b'$Image'):
+                stringData = stringData.decode()
+                image_size=int(stringData.split(',')[1])
+                coords = []
+                if opt.image:
+                    conn.sendall('Ready for Image'.encode('utf-8'))
+                    stringData = recvall(conn, (image_size))#nt()只能转化由纯数字组成的字符串
+                    img = numpy.frombuffer(stringData,numpy.uint8)  # 将获取到的字符流数据转换成1维数组 data = numpy.fromstring()           numpy.frombuffer
+                    decimg = cv2.imdecode(img, cv2.IMREAD_COLOR)  # 将数组解码成图像
+                    pub.pub_img(decimg)
+                conn.sendall('Ready for Coordinates'.encode('utf-8'))
+                stringData = conn.recv(block)#nt()只能转化由纯数字组成的字符串
+                stringData = stringData.decode()
+                coords=stringData.split(',')[1:-1]
+                assert len(coords) % 6 == 0,'coords length error'
+                conn.sendall('Ready for next Frame'.encode('utf-8'))
+                pub.pub_axis(coords,1,(len(coords)/6))
+                # =================================================================================================================================  
+                time.sleep(0.05)
+                print('process time = ', (time.time()-start))
+                # =================================================================================================================================
+            else:
+                continue
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -214,13 +197,13 @@ if __name__ == '__main__':
     pub=rospublisher()
     address = (opt.ip, opt.port)#'192.168.1.104', 8004
     server_soc = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    server_soc.setsockopt(socket.SOL_SOCKET,socket.SO_REUSEADDR,1) #端口可复用
+    # server_soc.settimeout(0.001)
     server_soc.bind(address)
-    server_soc.listen(10)
+    server_soc.listen()
     # fourcc = cv2.VideoWriter_fourcc('X', 'V', 'I','D')#avi格式
     # videoWriter = cv2.VideoWriter('./runs/receive_video/%s.avi' % time.strftime("%Y-%m-%d-%H_%M_%S",time.localtime(time.time())) , fourcc, 1, (1280, 720))##%(str(time.strftime("%Y-%m-%d-%H:%M:%S",time.localtime())))
     videoWriter = []
-    
     netdata_pipe(server_soc,videoWriter,pub)
-
-    # p=Process(target=ReceiveVideo,args=(conn, addr, pub))  #daemon默认值为False，如果设置为True，代表该进程为后台守护进程；当该进程的父进程终止时，该进程也随之终止；并且设置为True后，该进程不能创建子进程，设置该属性必须在start()之前
-    # p.start()
+    server_soc.close()
+    

@@ -53,10 +53,10 @@ def platform_init(bm_model=False, imgsz=640, device='pc', tcp_address=('192.168.
     #init AI model
     MASKS = [[0,1,2],[3,4,5],[6,7,8]]
     ANCHORS = [[10, 13], [16, 30], [33, 23], [30, 61], [62, 45], [59, 119], [116, 90], [156, 198], [373, 326]]
-    CLASSES = DATASET_NAMES.voc_names
+    CLASSES = DATASET_NAMES.coco_split_names
     if RKNNDetector.count != 0:
         del AI
-    AI = RKNNDetector(model='weights/best_416x416.rknn',wh=imgsz,masks=MASKS,anchors=ANCHORS,names=CLASSES)
+    AI = RKNNDetector(model='weights/best_416_coco_split_50.rknn',wh=imgsz,masks=MASKS,anchors=ANCHORS,names=CLASSES)
 
     return AI,SM,config,soc_client
 
@@ -163,7 +163,12 @@ def object_matching(ai_model,sm_model,camera_config,dataset,ratio,imgsz,fps,debu
                 depth.append(temp[4])
                 if (temp[4] >= args.out_range[0]*1000) & (temp[4] <= args.out_range[1]*1000):
                     # distance.append([label,int(box[0]),int(box[1]),int(box[2]),int(box[3]),int(depth[0])-camera_config.focal_length]) # raw boxes and depth
-                    distance.append([label,float((box[0]*depth[0]-v)/fx),float((box[3]*depth[0]-u)/fy),float((box[2]*depth[0]-v)/fx),float((box[3]*depth[0]-u)/fy),int(depth[0])]) # two bottum corner and distance to image plane
+                    distance.append([label,\
+                        float((box[0]-v)*depth[0]/fx),\
+                        float((box[3]-u)*depth[0]/fy),\
+                        float((box[2]-v)*depth[0]/fx),\
+                        float((box[3]-u)*depth[0]/fy),\
+                        int(depth[0])]) # two bottom corners and distance to focal point
 
             # %%%% TODO: 将最终深度结果画到图像里
                 if debug:
@@ -196,6 +201,7 @@ def object_matching(ai_model,sm_model,camera_config,dataset,ratio,imgsz,fps,debu
                 file_path = os.path.join(args.save_path,dataset.mode)
                 dataset.get_vid_dir(file_path)
                 dataset.writer.write(img_ai_raw)
+                # dataset.writer.write(img_ai)
                 # cv2.imshow('Result',img_ai) #cp3.6
                 # plt.imshow(cv2.cvtColor(img_ai,cv2.COLOR_BGR2RGB)) #cp3.5
                 # plt.title('result') #cp3.5
@@ -211,7 +217,7 @@ def object_matching(ai_model,sm_model,camera_config,dataset,ratio,imgsz,fps,debu
             for pred in distance:
                 line = real_time+': '+str(pred[0])+','+str(pred[1])+','+str(pred[2])+','+str(pred[3])+','+str(pred[4])+','+str(pred[5])+'\n'
                 f.write(line)
-                # print('--------------------'+line,end='')
+                print('--------------------'+line,end='')
         # logging.info(f'frame: {frame} Done. ({time.time() - t0:.3f}s)') #cp3.6
         if debug:
             print('frame: %s Done. (%.3fs)'%(frame,(time.time()-t1)),end='') #cp3.5

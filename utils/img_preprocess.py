@@ -98,7 +98,7 @@ def resize_convert(imgl_rectified, imgr_rectified, imgsz=640, stride=32):
     imgr_rectified = np.ascontiguousarray(imgr_rectified)
     return img_ai, imgl_rectified, imgr_rectified
  
-# @timethis
+@timethis
 def Image_Rectification(camera_config, img_left, img_right, imgsz=640, path=False, debug=False, UMat=False):
     """
     @description  : stereo camera calibration
