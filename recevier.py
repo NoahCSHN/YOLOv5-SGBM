@@ -63,7 +63,7 @@ class rospublisher:
         rospublisher.count -= 1
         print ("RosPublisher release")
 
-    def pub_axis(self,coords,frame,num):
+    def pub_axis(self,coords,timestamp,frame,num):
         """
         @description  : publisher the coordinates of the avoid object to ROS 
         ---------
@@ -76,10 +76,10 @@ class rospublisher:
         -------
         """
         
-        
         if coords != []:
             coord_msg=PolygonStamped()
-            coord_msg.header.stamp=rospy.Time.now()
+            # print('%d,%d'%(int(timestamp[0]),int(timestamp[1].strip())))
+            coord_msg.header.stamp=rospy.Time(int(timestamp[0]),int(timestamp[1][:9]))
             coord_msg.header.frame_id=str(frame)
             for i in range(int(num)):
                 coord_msg.polygon.points.append(Point32())
@@ -167,6 +167,8 @@ def netdata_pipe(server_soc, videoWriter, pub):
             if stringData.startswith(b'$Image'):
                 stringData = stringData.decode()
                 image_size=int(stringData.split(',')[1])
+                timestamp=stringData.split(',')[2:]
+                # print(timestamp)
                 coords = []
                 if opt.image:
                     conn.sendall('Ready for Image'.encode('utf-8'))
@@ -180,7 +182,7 @@ def netdata_pipe(server_soc, videoWriter, pub):
                 coords=stringData.split(',')[1:-1]
                 assert len(coords) % 6 == 0,'coords length error'
                 conn.sendall('Ready for next Frame'.encode('utf-8'))
-                pub.pub_axis(coords,1,(len(coords)/6))
+                pub.pub_axis(coords,timestamp,1,(len(coords)/6))
                 # =================================================================================================================================  
                 time.sleep(0.05)
                 print('process time = ', (time.time()-start))
@@ -195,6 +197,11 @@ if __name__ == '__main__':
     parser.add_argument('--image', action='store_true', help='show image mode')
     opt = parser.parse_args()
     pub=rospublisher()
+    # for i in range(30):
+    #     rostime=float(str(rospy.Time.now().secs)+'.'+str(rospy.Time.now().nsecs))
+    #     pytime=time.time()
+    #     diff=pytime - rostime
+    #     print(f'ROS time: {rostime}; PY time: {pytime}; minus: {diff}')
     address = (opt.ip, opt.port)#'192.168.1.104', 8004
     server_soc = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     server_soc.setsockopt(socket.SOL_SOCKET,socket.SO_REUSEADDR,1) #端口可复用

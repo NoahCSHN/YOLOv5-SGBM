@@ -3,12 +3,12 @@ Author  : Noah
 Date    : 20210408
 function: Load data to input to the model
 '''
-import os,sys,logging,glob,time
+import os,sys,logging,glob,time,rospy
 from pathlib import Path
 from itertools import repeat
 from multiprocessing.pool import ThreadPool
 from threading import Thread
-from utils.general import confirm_dir
+from utils.general import confirm_dir,timethis
 
 import cv2
 
@@ -52,11 +52,10 @@ class loadfiles:
         if '*' in p:
             files = sorted(glob.glob(p, recursive=True))  # glob
         elif os.path.isdir(p):
-            files = sorted(glob.glob(os.path.join(p, '*.*')))  # dir
+            files = sorted(glob.glob(os.path.join(p, '*.*')), key=lambda x: int(os.path.basename(x).split('.')[0]))  # dir
         elif os.path.isfile(p):
             files = [p]  # files
         else:
-            # raise Exception(f'ERROR: {p} does not exist') #cp3.6
             raise Exception('ERROR: %s does not exist'%p) #cp3.5
 
         images = [x for x in files if x.split('.')[-1].lower() in img_formats]
@@ -74,8 +73,6 @@ class loadfiles:
             self.new_video(videos[0])  # new video
         else:
             self.cap = None
-        # assert self.nf > 0, f'No images or videos found in {p}. ' \
-        #                     f'Supported formats are:\nimages: {img_formats}\nvideos: {vid_formats}' #cp3.6
         assert self.nf > 0, 'No images or videos found in %s. '%p \
                             # 'Supported formats are:\nimages: {img_formats}\nvideos: {vid_formats}' #cp3.5
 
@@ -98,7 +95,6 @@ class loadfiles:
                 if isinstance(self.writer, cv2.VideoWriter):
                     self.writer.release()
                 if self.count == self.nf:  # last video
-                    # cv2.destroyAllWindows() #cp3.6
                     raise StopIteration
                 else:
                     path = self.files[self.count]
@@ -106,8 +102,6 @@ class loadfiles:
                     ret_val, img0 = self.cap.read()
 
             self.frame += 1
-            # cv2.waitKey(1) #cp3.6
-            # print(f'video {self.count + 1}/{self.nf} ({self.frame}/{self.nframes}) {path}: ', end='') #cp3.6
             print('video %d/%d (%d/%d) %s: '%(self.count + 1,self.nf,self.frame,self.nframes,path), end='') #cp3.5
 
         else:
@@ -115,23 +109,21 @@ class loadfiles:
             self.count += 1
             img0 = cv2.imread(path)  # BGR
             assert img0 is not None, 'Image Not Found ' + path
-            # print(f'image {self.count}/{self.nf} {path}: ', end='\n') #cp3.6
+            print('========================new image========================')
             print('image %d/%d %s: '%(self.count, self.nf, path), end='\n') #cp3.5
 
         # Padded resize
+        TimeStamp = str(time.time()).split('.')
+        if len(TimeStamp[1])<9:
+            for i in range(9-len(TimeStamp[1])):
+                TimeStamp[1] += '0'
         h = img0.shape[0]
-        w = img0.shape[1]
+        w = img0.shape[1]        
         w1 = round(w/2)
         img0_left = img0[:,:w1,:]
         img0_right = img0[:,w1:,:]
-        # img0_left = letterbox(img0_left, self.img_size, stride=self.stride)[0]
-        # img0_right = letterbox(img0_right, self.img_size, stride=self.stride)[0]
-        # cv2.imwrite('/home/bynav/AI_SGBM/runs/detect/exp/img0_left.bmp', img0_left)
-        # Convert
-        # img_ai = img_ai[:, :, ::-1].transpose(2, 0, 1)  # BGR to RGB, to 3x416x416
-        # img_ai = np.ascontiguousarray(img_ai)
 
-        return path, img0_left, img0_right, (h,w1), self.cap
+        return path, img0_left, img0_right, (h,w1), TimeStamp, self.cap
     
     def get_vid_dir(self,path):
         self.vid_file_path = path
@@ -161,8 +153,8 @@ class loadcam:
     -------
     """
     
-    
-    def __init__(self, pipe='4', cam_freq=5, img_size=640, save_path=''):
+    # @timethis
+    def __init__(self, pipe='4', cam_freq=5, img_size=640, save_path='', debug=False, cam_mode=1):
         self.img_size = img_size
         if pipe.isnumeric():
             pipe = eval(pipe)  # local camera
@@ -170,21 +162,23 @@ class loadcam:
         # pipe = 'rtsp://username:password@192.168.1.64/1'  # IP camera with login
         # pipe = 'http://wmccpinetop.axiscam.net/mjpg/video.mjpg'  # IP golf camera
 
+        self.debug = debug
         self.pipe = pipe
         self.writer = None
         self.cap = cv2.VideoCapture(pipe)  # video capture object
         self.cap.set(cv2.CAP_PROP_FRAME_WIDTH,2560)
-        # self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT,960) #AR0135
-        self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT,720) #OV9714
+        if cam_mode == 2:
+            self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT,960) #AR0135
+        else:
+            self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT,720) #OV9714
         self.cap.set(cv2.CAP_PROP_FPS,cam_freq)
         self.cam_freq = cam_freq
         self.fps = self.cap.get(cv2.CAP_PROP_FPS)
         bufsize = self.fps if self.fps <= 10 else 10
-        self.cap.set(cv2.CAP_PROP_BUFFERSIZE, self.fps)  # set buffer size
+        self.cap.set(cv2.CAP_PROP_BUFFERSIZE, bufsize)  # set buffer size
         print('Camera run under %s fps'%(str(self.fps)))
-        self.vid_file_path = os.path.join(save_path,'webcam')
-        if not os.path.isdir(self.vid_file_path):
-            os.mkdir(self.vid_file_path)
+        self.vid_file_path = confirm_dir(save_path,'webcam')
+        self.img_file_path = confirm_dir(save_path,'webimg')
         self.new_video('test.avi')
         self.mode = 'webcam'
 
@@ -194,17 +188,6 @@ class loadcam:
         return self
 
     def __next__(self):
-        ''' cp3.6
-        self.count += 1
-        if cv2.waitKey(1) == ord('q'):  # q to quit
-            self.cap.release()
-            self.writer.release()
-            cv2.destroyAllWindows()
-            raise StopIteration
-        '''
-        # cp3.5
-        # print(self.count)
-        # t0 = time.time()
         try:
             self.count += 1
         except KeyboardInterrupt:
@@ -212,20 +195,19 @@ class loadcam:
             self.writer.release()
             print('Disconnnect to webcam')
             raise StopIteration
-        # t1=time.time()
-        # print('wait interrupt spend: (%.2fs)'%(t1-t0))
         # Read frame
         if self.pipe in [0,1,2,3,4,5]:  # local camera
             if  self.fps > self.cam_freq:
                 num = int(self.fps/self.cam_freq)
-                n = -1
+                n = 0
                 while True:
                     n += 1
                     ret_val, img0 = self.cap.read()
                     if n % num == 0:
                         if ret_val:
                             break
-            
+            else:
+                ret_val, img0 = self.cap.read()
             # img0 = cv2.flip(img0, 1)  # flip left-right
         else:  # IP camera
             n = 0
@@ -236,30 +218,25 @@ class loadcam:
                     ret_val, img0 = self.cap.retrieve()
                     if ret_val:
                         break
-        # t2=time.time()
-        # print('wait cap read spend: (%.2fs)'%(t2-t1))
-        # Print
-        # assert ret_val, f'Camera Error {self.pipe}' #cp3.6
         assert ret_val, 'Camera Error %d'%self.pipe #cp3.5
+        print('webcam %d: '%self.count,end='') #cp3.5
+        TimeStamp = str(time.time()).split('.')
+        if len(TimeStamp[1])<9:
+            for i in range(9-len(TimeStamp[1])):
+                TimeStamp[1] += '0'
         img_path = 'webcam.jpg'
-        # print(f'webcam {self.count}: ', end='') #cp3.6
-        print('webcam %d: '%self.count) #cp3.5
         
         w = img0.shape[1]
         h = img0.shape[0]
         w1 = int(w/2)
+        save_file = os.path.join(self.img_file_path,(str(self.frame)+'.jpg'))
+        if self.debug:
+            cv2.imwrite(save_file,img0)
         imgl = img0[:,:w1,:]
         imgr = img0[:,w1:,:]
         self.frame += 1
-        # print('split image spend: (%.2fs)'%(time.time()-t2))
-        # Padded resize
-        # img = letterbox(img0, self.img_size, stride=self.stride)[0]
 
-        # Convert
-        # img = img[:, :, ::-1].transpose(2, 0, 1)  # BGR to RGB, to 3x416x416
-        # img = np.ascontiguousarray(img)
-
-        return img_path, imgl, imgr, (h,w1), None
+        return img_path, imgl, imgr, (h,w1), TimeStamp, None
 
     def get_vid_dir(self,path):
         self.vid_file_path = path

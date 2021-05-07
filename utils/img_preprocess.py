@@ -98,7 +98,7 @@ def resize_convert(imgl_rectified, imgr_rectified, imgsz=640, stride=32):
     imgr_rectified = np.ascontiguousarray(imgr_rectified)
     return img_ai, imgl_rectified, imgr_rectified
  
-@timethis
+# @timethis
 def Image_Rectification(camera_config, img_left, img_right, imgsz=640, path=False, debug=False, UMat=False):
     """
     @description  : stereo camera calibration
@@ -142,8 +142,8 @@ def Image_Rectification(camera_config, img_left, img_right, imgsz=640, path=Fals
     config = camera_config
  
     # 立体校正
-    map1x, map1y, map2x, map2y, Q = getRectifyTransform(height, width, config)  # 获取用于畸变校正和立体校正的映射矩阵以及用于计算像素空间坐标的重投影矩阵
-    iml_rectified, imr_rectified = rectifyImage(iml, imr, map1x, map1y, map2x, map2y)
+    # map1x, map1y, map2x, map2y, Q = getRectifyTransform(height, width, config)  # 获取用于畸变校正和立体校正的映射矩阵以及用于计算像素空间坐标的重投影矩阵
+    iml_rectified, imr_rectified = rectifyImage(iml, imr, config.map1x, config.map1y, config.map2x, config.map2y)
     if UMat:
         img_ai_raw = cv2.UMat.get(iml_rectified)
     else:
@@ -151,6 +151,8 @@ def Image_Rectification(camera_config, img_left, img_right, imgsz=640, path=Fals
     # 图像缩放
     iml_rectified = letterbox(iml_rectified, imgsz)[0]
     imr_rectified = letterbox(imr_rectified, imgsz)[0]
+    iml_rectified = np.ascontiguousarray(iml_rectified)
+    imr_rectified = np.ascontiguousarray(imr_rectified)
     # save for debug
     # cv2.imwrite('/home/bynav/AI_SGBM/runs/detect/exp/Left1_rectified.bmp', iml_rectified)
     # cv2.imwrite('/home/bynav/AI_SGBM/runs/detect/exp/Right1_rectified.bmp', imr_rectified)

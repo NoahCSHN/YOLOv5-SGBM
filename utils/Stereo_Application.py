@@ -118,33 +118,32 @@ def disparity_centre(x_centre, y_centre, x_diff, y_diff, disparity,focal,baselin
     """
     p=[-2,-1,0,1,2]
     d=np.zeros((25,),dtype=float)
-    # dis_mean=np.zeros((1,),dtype=float) #disparity calculate
-    # depth=np.zeros((1,),dtype=float) #distance calculate
     dis_mean=0.
     depth=0.
-    logging.debug('------start calculating one sub-box-------')
     for i in range(5):
         for j in range(5):
             nx,ny=(x_centre+p[i]*x_diff),(y_centre+p[j]*y_diff)
             nx,ny=int(nx),int(ny)
-            # logging.debug(f'coordinates: {nx},{ny}') #cp3.6
             logging.debug('coordinates: %d,%d',nx,ny) #cp3.5
-            # logging.debug(f'{disparity[ny,nx]==-1},{disparity[ny,nx]:.2f}')
             d.flat[5*i+j]=disparity[ny,nx]
-            # logging.debug(f'disparity: {d.flat[5*i+j]}') #cp3.6
             logging.debug('disparity: %f',d.flat[5*i+j]) #cp3.5
-    d=d[d!=-1]
-    # if len(d):
-        # dis_mean = d.mean()
+    d=d.ravel()
+    d=d[d>0.]
     d=np.sort(d,axis=None)
-    if len(d):       
-        dis_mean = d[round(len(d)/2)]
-    else:
-        dis_mean = -1
-    if dis_mean > 0:
+    # print(d)
+    if len(d) >= 5:
+        d=np.delete(d,[0,-1])
+        dis_mean = d.mean()
         depth = focal*baseline/dis_mean
     else:
         depth = -1
+    #=========================================
+    # d=np.sort(d,axis=None)
+    # if len(d):       
+    #     dis_mean = d[round(len(d)/2)]
+    # else:
+    #     dis_mean = -1
+    #=========================================
     return depth
 
 # %% standalone usage function

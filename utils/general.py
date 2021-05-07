@@ -7,6 +7,7 @@ import os,sys,logging,cv2,time,functools,socket
 from pathlib import Path
 import numpy as np
 from contextlib import contextmanager
+from enum import Enum
 
 def get_new_size(img, scale):
     if type(img) != cv2.UMat:
@@ -175,6 +176,7 @@ class socket_client():
         try:
             self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             self.sock.connect(self.address)
+            print('connect to: ',address)
         except socket.error as msg:
             self.sock = None
             print(msg)
@@ -209,7 +211,9 @@ class socket_client():
             stringData = data.tostring()
             # print('image encode: (%s)'%(time.time()-t1))
             ## 首先发送图片编码后的长度
-            self.sock.sendall(('$Image,'+str(len(stringData))).encode('utf-8').ljust(32)) 
+            header='$Image,'+str(len(stringData))+','+str(coords[0][0])+','+str(coords[0][1])
+            # print(header)
+            self.sock.sendall(header.encode('utf-8').ljust(128)) 
             # print('Send Image size done, waiting for answer')
             while answer != 'Ready for Image':
                 answer = self.sock.recv(32).decode('utf-8')
@@ -217,13 +221,14 @@ class socket_client():
             self.sock.sendall(stringData)
             # print('Send Image done, waiting for answer')
         else:
-            self.sock.sendall(('$Image,'+str('0')).encode('utf-8').ljust(32))
+            header='$Image,'+str('0')+','+str(coords[0][0])+','+str(coords[0][1])
+            self.sock.sendall(header.encode('utf-8').ljust(32))
         while answer != 'Ready for Coordinates':
             answer = self.sock.recv(32).decode('utf-8')
         # print('Recv from server: %s'%answer)
 
         coordData = '$Coord'
-        for item in coords:
+        for item in coords[1:]:
             coordData += ','
             coordData += str(item[1])
             coordData += ','
@@ -254,3 +259,8 @@ class socket_client():
     
     def __del__(self):
         self.close()
+
+class calib_type(Enum):
+    OV9714_1280_720 = 0
+    AR0135_1280_720 = 1
+    AR0135_1280_960 = 2

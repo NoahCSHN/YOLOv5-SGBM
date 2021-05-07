@@ -166,6 +166,7 @@ class RKNNDetector:
         scores = np.concatenate(nscores)
         label_list = []
         box_list = []
+        score_list = []
         raw_box_list = []
         for (x, y, w, h), score, cl in zip(boxes, scores, classes):
             x_raw = x * pred_w
@@ -188,9 +189,10 @@ class RKNNDetector:
             y2 = min(src_h, np.floor(y + h + 0.5).astype(int))
             label_list.append(self.names[cl])
             box_list.append((x1, y1, x2, y2))
+            score_list.append(score)
             if self.draw_box:
                 plot_one_box((x1, y1, x2, y2), img_src, label=self.names[cl])
-        return label_list, box_list , raw_box_list
+        return label_list, score_list, box_list , raw_box_list
 
     def predict_resize(self, img_src, conf_thres=0.4, iou_thres=0.45):
         """
