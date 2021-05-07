@@ -161,10 +161,16 @@ def object_matching(ai_model,sm_model,camera_config,dataset,ratio,imgsz,fps,debu
                 temp = np.sort(temp)
                 temp = temp[temp!=-1.]
                 # print('depth: ',temp)
-                if (len(temp)%2 == 0) & (len(temp)>1):
-                    temp_dis = (temp[round(len(temp)/2)]+temp[round(len(temp)/2)-1])/2 
-                else:
-                    temp_dis = temp[round(len(temp)/2)]
+            if len(temp) == 0:
+                temp_dis == -1
+            elif (len(temp)%2 == 0) & (len(temp)>1):
+                temp_dis = (temp[round(len(temp)/2)]+temp[round(len(temp)/2)-1])/2
+            else:
+                temp_dis = temp[round(len(temp)/2)]
+                #if (len(temp)%2 == 0) & (len(temp)>1):
+                #    temp_dis = (temp[round(len(temp)/2)]+temp[round(len(temp)/2)-1])/2 
+                #else:
+                #    temp_dis = temp[round(len(temp)/2)]
                 depth.append(temp_dis)
                 if (temp_dis >= args.out_range[0]*1000) & (temp_dis <= args.out_range[1]*1000):
                     # distance.append([label,int(box[0]),int(box[1]),int(box[2]),int(box[3]),int(depth[0])-camera_config.focal_length]) # raw boxes and depth
