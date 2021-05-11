@@ -76,30 +76,32 @@ class rospublisher:
         -------
         """
         
+        coord_msg=PolygonStamped()
+        coord_msg.header.stamp=rospy.Time(int(timestamp[0]),int(timestamp[1][:9]))
+        coord_msg.header.frame_id=str(frame)
+        '''
+        @logic:以矩形框的宽作为预测的物体厚度值，同时，考虑到距离识别误差，在预测厚度值的基础上，添加0.2m。
+        '''
         if coords != []:
-            coord_msg=PolygonStamped()
-            # print('%d,%d'%(int(timestamp[0]),int(timestamp[1].strip())))
-            coord_msg.header.stamp=rospy.Time(int(timestamp[0]),int(timestamp[1][:9]))
-            coord_msg.header.frame_id=str(frame)
             for i in range(int(num)):
                 coord_msg.polygon.points.append(Point32())
-                coord_msg.polygon.points[4*i].x=float(coords[i*6+2])/1000+abs((float(coords[i*6+0])/1000)-float(coords[i*6+3])/1000)
+                coord_msg.polygon.points[4*i].x=float(coords[i*6+2])/1000+abs((float(coords[i*6+0])/1000)-float(coords[i*6+3])/1000)-0.1
                 coord_msg.polygon.points[4*i].y=float(-float(coords[i*6+0])/1000)
                 coord_msg.polygon.points[4*i].z=float(coords[i*6+1])/1000
                 coord_msg.polygon.points.append(Point32())
-                coord_msg.polygon.points[4*i+1].x=float(coords[i*6+2])/1000
+                coord_msg.polygon.points[4*i+1].x=float(coords[i*6+2])/1000+0.1
                 coord_msg.polygon.points[4*i+1].y=float(-float(coords[i*6+0])/1000)
                 coord_msg.polygon.points[4*i+1].z=float(coords[i*6+1])/1000
                 coord_msg.polygon.points.append(Point32())
-                coord_msg.polygon.points[4*i+2].x=float(coords[i*6+5])/1000
+                coord_msg.polygon.points[4*i+2].x=float(coords[i*6+5])/1000+0.1
                 coord_msg.polygon.points[4*i+2].y=float(-float(coords[i*6+3])/1000)
                 coord_msg.polygon.points[4*i+2].z=float(coords[i*6+4])/1000
                 coord_msg.polygon.points.append(Point32())
-                coord_msg.polygon.points[4*i+3].x=float(coords[i*6+5])/1000+abs((float(coords[i*6+0])/1000)-float(coords[i*6+3])/1000)
+                coord_msg.polygon.points[4*i+3].x=float(coords[i*6+5])/1000+abs((float(coords[i*6+0])/1000)-float(coords[i*6+3])/1000)-0.1
                 coord_msg.polygon.points[4*i+3].y=float(-float(coords[i*6+3])/1000)
                 coord_msg.polygon.points[4*i+3].z=float(coords[i*6+4])/1000
             
-            self._coor_pub.publish(coord_msg)
+        self._coor_pub.publish(coord_msg)
             
     def pub_img(self,img):
         bridge=CvBridge()
@@ -167,7 +169,8 @@ def netdata_pipe(server_soc, videoWriter, pub):
             if stringData.startswith(b'$Image'):
                 stringData = stringData.decode()
                 image_size=int(stringData.split(',')[1])
-                timestamp=stringData.split(',')[2:]
+                timestamp=stringData.split(',')[2:-1]
+                frame=stringData.split(',')[-1]
                 # print(timestamp)
                 coords = []
                 if opt.image:
@@ -182,7 +185,7 @@ def netdata_pipe(server_soc, videoWriter, pub):
                 coords=stringData.split(',')[1:-1]
                 assert len(coords) % 6 == 0,'coords length error'
                 conn.sendall('Ready for next Frame'.encode('utf-8'))
-                pub.pub_axis(coords,timestamp,1,(len(coords)/6))
+                pub.pub_axis(coords,timestamp,frame,(len(coords)/6))
                 # =================================================================================================================================  
                 time.sleep(0.05)
                 print('process time = ', (time.time()-start))

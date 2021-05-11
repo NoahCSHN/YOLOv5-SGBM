@@ -203,7 +203,7 @@ class RKNNDetector:
         gain = img_src.shape[:2][::-1]
         return self._predict(img_src, _img, gain, conf_thres, iou_thres, )
 
-    # @timethis
+    @timethis
     def predict(self, img_src, conf_thres=0.4, iou_thres=0.45):
         """
         预测一张图片，预处理保持宽高比

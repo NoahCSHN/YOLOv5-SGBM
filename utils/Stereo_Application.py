@@ -66,7 +66,7 @@ class SGBM:
         self.window_size = 3
         self.stereo = cv2.StereoSGBM_create(
             minDisparity=0,
-            numDisparities=48,  # max_disp has to be dividable by 16 f. E. HH 192, 256
+            numDisparities=160,  # max_disp has to be dividable by 16 f. E. HH 192, 256
             blockSize=3,
             P1=8 * 3 * self.window_size ** 2,
             P2=32 * 3 * self.window_size ** 2,
@@ -85,7 +85,7 @@ class SGBM:
         class_name=self.__class__.__name__
         print (class_name,"release")
     
-    # @timethis
+    @timethis
     def run(self,ImgL,ImgR):
         t0 = time.time()
         # self.imgL = ImgL
@@ -130,7 +130,7 @@ def disparity_centre(x_centre, y_centre, x_diff, y_diff, disparity,focal,baselin
     d=d.ravel()
     d=d[d>0.]
     d=np.sort(d,axis=None)
-    # print(d)
+    print(d)
     if len(d) >= 5:
         d=np.delete(d,[0,-1])
         dis_mean = d.mean()

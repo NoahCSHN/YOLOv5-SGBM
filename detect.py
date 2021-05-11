@@ -7,7 +7,7 @@
 @version      :version : 21042603
 
 '''
-import os,logging,sys,argparse,time,socket
+import os,logging,sys,argparse,time,socket,math
 
 import cv2
 import numpy as np
@@ -115,8 +115,6 @@ def object_matching(ai_model,sm_model,camera_config,dataset,ratio,imgsz,fps,debu
         t0 = time.time()
         distance = []
         distance.append(TimeStamp)
-        # print('TimeStamp: ',TimeStamp)
-        # print('TimeStamp: ',distance)
         if dataset.mode == 'image' or dataset.mode == 'webcam':
             frame = str(dataset.count)
         else:
@@ -159,21 +157,18 @@ def object_matching(ai_model,sm_model,camera_config,dataset,ratio,imgsz,fps,debu
             
             #%%%% TODO: 取众多框计算值的中位数
                 temp = np.sort(temp)
+                # temp_dis = temp[4]
                 temp = temp[temp!=-1.]
-                # print('depth: ',temp)
-            if len(temp) == 0:
-                temp_dis == -1
-            elif (len(temp)%2 == 0) & (len(temp)>1):
-                temp_dis = (temp[round(len(temp)/2)]+temp[round(len(temp)/2)-1])/2
-            else:
-                temp_dis = temp[round(len(temp)/2)]
-                #if (len(temp)%2 == 0) & (len(temp)>1):
-                #    temp_dis = (temp[round(len(temp)/2)]+temp[round(len(temp)/2)-1])/2 
-                #else:
-                #    temp_dis = temp[round(len(temp)/2)]
+                print('depth: ',temp)
+                print(math.floor(len(temp)/2))
+                if len(temp) == 0:
+                    temp_dis = -1
+                elif (len(temp)%2 == 0) & (len(temp)>1):
+                    temp_dis = (temp[math.floor(len(temp)/2)]+temp[math.floor(len(temp)/2)-1])/2
+                else:
+                    temp_dis = temp[math.floor(len(temp)/2)]
                 depth.append(temp_dis)
                 if (temp_dis >= args.out_range[0]*1000) & (temp_dis <= args.out_range[1]*1000):
-                    # distance.append([label,int(box[0]),int(box[1]),int(box[2]),int(box[3]),int(depth[0])-camera_config.focal_length]) # raw boxes and depth
                     distance.append([label,\
                         float((box[0]-v)*depth[0]/fx),\
                         float((box[3]-u)*depth[0]/fy),\
@@ -182,8 +177,6 @@ def object_matching(ai_model,sm_model,camera_config,dataset,ratio,imgsz,fps,debu
                         int(depth[0])]) # two bottom corners and distance to focal point
 
             # %%%% TODO: 将最终深度结果画到图像里
-                # if debug:
-                # if False:
                 xyxy = [box[0],box[1],box[2],box[3]]
                 label = str(label)+':'+str(round(score,2)) #cp3.5
                 plot_one_box(xyxy, img_ai, label=label, line_thickness=3)
@@ -194,9 +187,11 @@ def object_matching(ai_model,sm_model,camera_config,dataset,ratio,imgsz,fps,debu
                 label = str(round(depth[0],2)) #cp3.5
                 plot_one_box(xyxy, img_ai, label=label, line_thickness=3)             
                 index += 1
+        # %%%% send result
+        soc_client.send(img_ai, distance, frame, imgsz, visual)
             #%%%% TODO: 保存结果
         # with timeblock('write file'):
-        if visual:
+        if args.save_result:
             if dataset.mode == 'image':
                 file_path = confirm_dir(args.save_path,'images')
                 save_path = os.path.join(file_path,str(dataset.count)+'.bmp')
@@ -205,23 +200,17 @@ def object_matching(ai_model,sm_model,camera_config,dataset,ratio,imgsz,fps,debu
                 file_path = os.path.join(args.save_path,dataset.mode)
                 dataset.get_vid_dir(file_path)
                 dataset.writer.write(img_ai)
-        # logging.debug('result: %s',distance) #cp3.5
-        
-        # cv2.destroyAllWindows() #cp3.6
-        txt_path = confirm_dir(args.save_path,'txt')
-        with open(os.path.join(txt_path,'result'),'a+') as f:
-            f.write('-----------------'+real_time+str(frame)+'-----------------\n')
-            for pred in distance[1:]:
-                line = real_time+': '+str(pred[0])+','+str(pred[1])+','+str(pred[2])+','+str(pred[3])+','+str(pred[4])+','+str(pred[5])+'\n'
-                f.write(line)
-                print(line,end='')
-        # logging.info(f'frame: {frame} Done. ({time.time() - t0:.3f}s)') #cp3.6
+            txt_path = confirm_dir(args.save_path,'txt')
+            with open(os.path.join(txt_path,'result'),'a+') as f:
+                f.write('-----------------'+real_time+str(frame)+'-----------------\n')
+                for pred in distance[1:]:
+                    line = real_time+': '+str(pred[0])+','+str(pred[1])+','+str(pred[2])+','+str(pred[3])+','+str(pred[4])+','+str(pred[5])+'\n'
+                    f.write(line)
+                    print(line,end='')
         if True:
-            print('frame: %s Done. (%.3fs)'%(frame,(time.time()-t1)),end='') #cp3.5
-            print(' --Process: use (%.3fs)'%(time.time()-t0)) #cp3.5
+            print('frame: %s Done. (%.3fs);'%(frame,(time.time()-t1)),end='') #cp3.5
+            print('Process: use (%.3fs)'%(time.time()-t0)) #cp3.5
         t1=time.time()
-        real_time = time.asctime()
-        soc_client.send(img_ai, distance, fps, imgsz, visual)
 
 #%% main
 def main():
@@ -284,6 +273,7 @@ if __name__ == '__main__':
     parser.add_argument("--BM", help="switch to BM alogrithm for depth inference", action="store_true")
     parser.add_argument("--debug", help="save data source for replay", action="store_true")
     parser.add_argument("--visual", help="result visualization", action="store_true")
+    parser.add_argument("--save_result", help="inference result save", action="store_true")
     parser.add_argument("--save_path",help="path for result saving",type=str,default="runs/detect/test")                    
     args = parser.parse_args()
     # %% 创建局部函数，加快代码运行

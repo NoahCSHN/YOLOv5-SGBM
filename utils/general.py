@@ -182,14 +182,14 @@ class socket_client():
             print(msg)
             sys.exit(1)         
     
-    def send(self,image,coords,fps,imgsz=(416,416),debug=False):
+    def send(self,image,coords,frame,imgsz=(416,416),debug=False):
         """
         @description  : send a packet to tcp server
         ---------
         @param  :
             image: the cv2 image mat (imgsz[0],imgsz[1])
             coords: the coords of the opposite angle of the object rectangle,(n,(x1,y1,z1,x2,y2,z2))
-            fps: the fps of the camera
+            frame: frame number of the pipe stream
             imgsz: the image resolution(height,width)
             debug: type bool, if true, add a image in imgsz shape to tcp transmission packet        
         -------
@@ -199,10 +199,8 @@ class socket_client():
         
         t0=time.time()
         answer = []
-
-        # print('Start image and coordinate transformation')
         if debug:
-            encode_param = [int(cv2.IMWRITE_JPEG_QUALITY), fps]
+            encode_param = [int(cv2.IMWRITE_JPEG_QUALITY), 100]
             ## 首先对图片进行编码，因为socket不支持直接发送图片
             # t1=time.time()
             image,_,_ = letterbox(image,imgsz)
@@ -211,9 +209,9 @@ class socket_client():
             stringData = data.tostring()
             # print('image encode: (%s)'%(time.time()-t1))
             ## 首先发送图片编码后的长度
-            header='$Image,'+str(len(stringData))+','+str(coords[0][0])+','+str(coords[0][1])
+            header='$Image,'+str(len(stringData))+','+str(coords[0][0])+','+str(coords[0][1])+','+str(frame)
             # print(header)
-            self.sock.sendall(header.encode('utf-8').ljust(128)) 
+            self.sock.sendall(header.encode('utf-8').ljust(64)) 
             # print('Send Image size done, waiting for answer')
             while answer != 'Ready for Image':
                 answer = self.sock.recv(32).decode('utf-8')

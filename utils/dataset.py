@@ -3,12 +3,12 @@ Author  : Noah
 Date    : 20210408
 function: Load data to input to the model
 '''
-import os,sys,logging,glob,time,rospy
+import os,sys,logging,glob,time
 from pathlib import Path
 from itertools import repeat
 from multiprocessing.pool import ThreadPool
 from threading import Thread
-from utils.general import confirm_dir,timethis
+from utils.general import confirm_dir,timethis,calib_type
 
 import cv2
 
@@ -167,14 +167,15 @@ class loadcam:
         self.writer = None
         self.cap = cv2.VideoCapture(pipe)  # video capture object
         self.cap.set(cv2.CAP_PROP_FRAME_WIDTH,2560)
-        if cam_mode == 2:
+        if cam_mode == calib_type.AR0135_1280_960:
             self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT,960) #AR0135
         else:
             self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT,720) #OV9714
-        self.cap.set(cv2.CAP_PROP_FPS,cam_freq)
+        # self.cap.set(cv2.CAP_PROP_FPS,cam_freq)
         self.cam_freq = cam_freq
         self.fps = self.cap.get(cv2.CAP_PROP_FPS)
-        bufsize = self.fps if self.fps <= 10 else 10
+        # bufsize = self.fps if self.fps <= 10 else 10
+        bufsize = 2
         self.cap.set(cv2.CAP_PROP_BUFFERSIZE, bufsize)  # set buffer size
         print('Camera run under %s fps'%(str(self.fps)))
         self.vid_file_path = confirm_dir(save_path,'webcam')
@@ -197,17 +198,17 @@ class loadcam:
             raise StopIteration
         # Read frame
         if self.pipe in [0,1,2,3,4,5]:  # local camera
-            if  self.fps > self.cam_freq:
-                num = int(self.fps/self.cam_freq)
-                n = 0
-                while True:
-                    n += 1
-                    ret_val, img0 = self.cap.read()
-                    if n % num == 0:
-                        if ret_val:
-                            break
-            else:
-                ret_val, img0 = self.cap.read()
+            # if  self.fps > self.cam_freq:
+            #     num = int(self.fps/self.cam_freq)
+            #     n = 0
+            #     while True:
+            #         n += 1
+            #         ret_val, img0 = self.cap.read()
+            #         if n % num == 0:
+            #             if ret_val:
+            #                 break
+            # else:
+            ret_val, img0 = self.cap.read()
             # img0 = cv2.flip(img0, 1)  # flip left-right
         else:  # IP camera
             n = 0
@@ -229,7 +230,7 @@ class loadcam:
         w = img0.shape[1]
         h = img0.shape[0]
         w1 = int(w/2)
-        save_file = os.path.join(self.img_file_path,(str(self.frame)+'.jpg'))
+        save_file = os.path.join(self.img_file_path,(str(self.frame)+'.bmp'))
         if self.debug:
             cv2.imwrite(save_file,img0)
         imgl = img0[:,:w1,:]
