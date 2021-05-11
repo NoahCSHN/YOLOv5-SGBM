@@ -3,7 +3,7 @@ Author  : Noah
 Date    : 20210408
 function: Load data to input to the model
 '''
-import os,sys,logging,glob,time
+import os,sys,logging,glob,time,queue
 from pathlib import Path
 from itertools import repeat
 from multiprocessing.pool import ThreadPool
@@ -73,8 +73,8 @@ class loadfiles:
             self.new_video(videos[0])  # new video
         else:
             self.cap = None
-        assert self.nf > 0, 'No images or videos found in %s. '%p \
-                            # 'Supported formats are:\nimages: {img_formats}\nvideos: {vid_formats}' #cp3.5
+        assert self.nf > 0, 'Supported formats are:\nimages: %s\nvideos: %s'%(img_formats,vid_formats) #cp3.5
+                            # 'Supported formats are:\nimages: {img_formats}\nvideos: {vid_formats}' #cp3.6
 
     def __iter__(self):
         self.count = 0
@@ -171,10 +171,9 @@ class loadcam:
             self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT,960) #AR0135
         else:
             self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT,720) #OV9714
-        # self.cap.set(cv2.CAP_PROP_FPS,cam_freq)
         self.cam_freq = cam_freq
         self.fps = self.cap.get(cv2.CAP_PROP_FPS)
-        # bufsize = self.fps if self.fps <= 10 else 10
+        self.queue = queue.LifoQueue(maxsize=self.fps)
         bufsize = 2
         self.cap.set(cv2.CAP_PROP_BUFFERSIZE, bufsize)  # set buffer size
         print('Camera run under %s fps'%(str(self.fps)))
@@ -182,62 +181,58 @@ class loadcam:
         self.img_file_path = confirm_dir(save_path,'webimg')
         self.new_video('test.avi')
         self.mode = 'webcam'
+        self.count = -1
+        self.frame = 0        
+        thread = Thread(target=self._update,args=[],daemon=True)
+        thread.start()
+    
+    def _update(self):
+        while True:
+            self.count += 1
+            # Read frame
+            if self.pipe in [0,1,2,3,4,5]:  # local camera
+                ret_val, img0 = self.cap.read()
+                # img0 = cv2.flip(img0, 1)  # flip left-right
+            else:  # IP camera
+                n = 0
+                while True:
+                    n += 1
+                    self.cap.grab()
+                    if n % 30 == 0:  # skip frames
+                        ret_val, img0 = self.cap.retrieve()
+                        if ret_val:
+                            break
+            assert ret_val, 'Camera Error %d'%self.pipe #cp3.5
+            print('webcam %d: '%self.count,end='') #cp3.5
+            TimeStamp = str(time.time()).split('.')
+            if len(TimeStamp[1])<9:
+                for i in range(9-len(TimeStamp[1])):
+                    TimeStamp[1] += '0'
+            
+            w = img0.shape[1]
+            h = img0.shape[0]
+            w1 = int(w/2)
+            save_file = os.path.join(self.img_file_path,(str(self.frame)+'.bmp'))
+            if self.debug:
+                cv2.imwrite(save_file,img0)
+            imgl = img0[:,:w1,:]
+            imgr = img0[:,w1:,:]
+            self.queue.put((TimeStamp,imgl,imgr,(h,w1)))
 
     def __iter__(self):
-        self.count = -1
-        self.frame = 0
         return self
 
+    @timethis
     def __next__(self):
-        try:
-            self.count += 1
-        except KeyboardInterrupt:
-            self.cap.release()
-            self.writer.release()
-            print('Disconnnect to webcam')
-            raise StopIteration
-        # Read frame
-        if self.pipe in [0,1,2,3,4,5]:  # local camera
-            # if  self.fps > self.cam_freq:
-            #     num = int(self.fps/self.cam_freq)
-            #     n = 0
-            #     while True:
-            #         n += 1
-            #         ret_val, img0 = self.cap.read()
-            #         if n % num == 0:
-            #             if ret_val:
-            #                 break
-            # else:
-            ret_val, img0 = self.cap.read()
-            # img0 = cv2.flip(img0, 1)  # flip left-right
-        else:  # IP camera
-            n = 0
-            while True:
-                n += 1
-                self.cap.grab()
-                if n % 30 == 0:  # skip frames
-                    ret_val, img0 = self.cap.retrieve()
-                    if ret_val:
-                        break
-        assert ret_val, 'Camera Error %d'%self.pipe #cp3.5
-        print('webcam %d: '%self.count,end='') #cp3.5
-        TimeStamp = str(time.time()).split('.')
-        if len(TimeStamp[1])<9:
-            for i in range(9-len(TimeStamp[1])):
-                TimeStamp[1] += '0'
-        img_path = 'webcam.jpg'
-        
-        w = img0.shape[1]
-        h = img0.shape[0]
-        w1 = int(w/2)
-        save_file = os.path.join(self.img_file_path,(str(self.frame)+'.bmp'))
-        if self.debug:
-            cv2.imwrite(save_file,img0)
-        imgl = img0[:,:w1,:]
-        imgr = img0[:,w1:,:]
+        while True:
+            try:
+                TimeStamp, imgl, imgr, imgs = self.queue.get()
+                break
+            except Exception as e:
+                print('Read camera error: %s'%e)
         self.frame += 1
-
-        return img_path, imgl, imgr, (h,w1), TimeStamp, None
+        img_path = 'webcam.jpg'
+        return img_path, imgl, imgr, imgs, TimeStamp, None
 
     def get_vid_dir(self,path):
         self.vid_file_path = path

@@ -12,6 +12,7 @@ import os,logging,sys,argparse,time,socket,math
 import cv2
 import numpy as np
 import matplotlib.pyplot as plt 
+from threading import Thread
 from utils.rknn_detect_yolov5 import  RKNNDetector,plot_one_box
 from utils.img_preprocess import Image_Rectification
 from utils.Stereo_Application import SGBM,BM,disparity_centre
@@ -159,8 +160,8 @@ def object_matching(ai_model,sm_model,camera_config,dataset,ratio,imgsz,fps,debu
                 temp = np.sort(temp)
                 # temp_dis = temp[4]
                 temp = temp[temp!=-1.]
-                print('depth: ',temp)
-                print(math.floor(len(temp)/2))
+                # print('depth: ',temp)
+                # print(math.floor(len(temp)/2))
                 if len(temp) == 0:
                     temp_dis = -1
                 elif (len(temp)%2 == 0) & (len(temp)>1):

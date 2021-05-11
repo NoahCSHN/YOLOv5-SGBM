@@ -130,7 +130,7 @@ def disparity_centre(x_centre, y_centre, x_diff, y_diff, disparity,focal,baselin
     d=d.ravel()
     d=d[d>0.]
     d=np.sort(d,axis=None)
-    print(d)
+    # print(d)
     if len(d) >= 5:
         d=np.delete(d,[0,-1])
         dis_mean = d.mean()
