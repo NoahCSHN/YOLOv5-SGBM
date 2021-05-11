@@ -13,7 +13,7 @@ from utils.stereoconfig import stereoCamera
 import os
 from pathlib import Path
 from utils.rknn_detect_yolov5 import letterbox
-from utils.general import timethis
+from utils.general import timethis,timeblock
 # from pcl import pcl_visualization
  
 
@@ -131,28 +131,31 @@ def Image_Rectification(camera_config, img_left, img_right, imgsz=640, path=Fals
     else:
         iml = img_left  # left
         imr = img_right # right
+    img_ai = iml
     if UMat:
         iml = cv2.UMat(iml)  # left
         imr = cv2.UMat(imr) # right        
         height, width = iml.get().shape[0:2]
     else:
         height, width = iml.shape[0:2]
+    with timeblock('letterbox'):
+        iml = letterbox(iml, imgsz)[0]
+        imr = letterbox(imr, imgsz)[0]
     
     # 读取相机内参和外参
     config = camera_config
  
     # 立体校正
-    # map1x, map1y, map2x, map2y, Q = getRectifyTransform(height, width, config)  # 获取用于畸变校正和立体校正的映射矩阵以及用于计算像素空间坐标的重投影矩阵
     iml_rectified, imr_rectified = rectifyImage(iml, imr, config.map1x, config.map1y, config.map2x, config.map2y)
-    if UMat:
-        img_ai_raw = cv2.UMat.get(iml_rectified)
-    else:
-        img_ai_raw = iml_rectified
+    # if UMat:
+    #     img_ai_raw = cv2.UMat.get(iml_rectified)
+    # else:
+    #     img_ai_raw = iml_rectified
     # 图像缩放
-    iml_rectified = letterbox(iml_rectified, imgsz)[0]
-    imr_rectified = letterbox(imr_rectified, imgsz)[0]
-    iml_rectified = np.ascontiguousarray(iml_rectified)
-    imr_rectified = np.ascontiguousarray(imr_rectified)
+    # iml_rectified = letterbox(iml_rectified, imgsz)[0]
+    # imr_rectified = letterbox(imr_rectified, imgsz)[0]
+    # iml_rectified = np.ascontiguousarray(iml_rectified)
+    # imr_rectified = np.ascontiguousarray(imr_rectified)
     # save for debug
     # cv2.imwrite('/home/bynav/AI_SGBM/runs/detect/exp/Left1_rectified.bmp', iml_rectified)
     # cv2.imwrite('/home/bynav/AI_SGBM/runs/detect/exp/Right1_rectified.bmp', imr_rectified)
@@ -163,12 +166,7 @@ def Image_Rectification(camera_config, img_left, img_right, imgsz=640, path=Fals
         # line = draw_line(iml_rectified, imr_rectified)
         # cv2.imwrite('./runs/detect/test/line.png', line)
  
-    # 显示点云
-    # view_cloud(pointcloud()
-    # logging.info(f'Image rectification Done. ({time.time() - t0:.3f}s)')   #cp3.6
-    logging.info('Image rectification Done. (%.2fs)',(time.time() - t0))   #cp3.5
-    # print('Image rectification Done. (%.2fs)'%(time.time() - t0))   #cp3.5
-    return iml_rectified,imr_rectified,img_ai_raw,(height,width)
+    return iml_rectified,imr_rectified,img_ai
 
 if __name__ == '__main__':
     config = stereoCamera()

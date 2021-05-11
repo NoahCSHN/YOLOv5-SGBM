@@ -164,10 +164,11 @@ class loadcam:
 
         self.debug = debug
         self.pipe = pipe
+        self.time = 0
         self.writer = None
         self.cap = cv2.VideoCapture(pipe)  # video capture object
         self.cap.set(cv2.CAP_PROP_FRAME_WIDTH,2560)
-        if cam_mode == calib_type.AR0135_1280_960:
+        if cam_mode == calib_type.AR0135_1280_960 or cam_mode == calib_type.AR0135_416_416:
             self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT,960) #AR0135
         else:
             self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT,720) #OV9714
@@ -203,7 +204,6 @@ class loadcam:
                         if ret_val:
                             break
             assert ret_val, 'Camera Error %d'%self.pipe #cp3.5
-            print('webcam %d: '%self.count,end='') #cp3.5
             TimeStamp = str(time.time()).split('.')
             if len(TimeStamp[1])<9:
                 for i in range(9-len(TimeStamp[1])):
@@ -222,7 +222,7 @@ class loadcam:
     def __iter__(self):
         return self
 
-    @timethis
+    # @timethis
     def __next__(self):
         while True:
             try:
@@ -230,8 +230,13 @@ class loadcam:
                 break
             except Exception as e:
                 print('Read camera error: %s'%e)
+        print('=========================webcam %d ======================='%self.frame) #cp3.5                
         self.frame += 1
         img_path = 'webcam.jpg'
+        runtime = time.time() - self.time
+        if runtime < 1/self.cam_freq:
+            time.sleep(round(1/self.cam_freq-runtime,3))
+        self.time = time.time()
         return img_path, imgl, imgr, imgs, TimeStamp, None
 
     def get_vid_dir(self,path):

@@ -7,7 +7,7 @@
 @version      :version : 21042603
 
 '''
-import os,logging,sys,argparse,time,socket,math
+import os,logging,sys,argparse,time,socket,math,queue
 
 import cv2
 import numpy as np
@@ -50,7 +50,7 @@ def platform_init(bm_model=False, imgsz=640, device='pc', tcp_address=('192.168.
         if SGBM.count != 0:
             del SM
         SM = SGBM()
-    config = stereoCamera(mode=calib_type.AR0135_1280_960,height=960,width=1280)
+    config = stereoCamera(mode=calib_type.AR0135_416_416,height=416,width=416)
     #init AI model
     MASKS = [[0,1,2],[3,4,5],[6,7,8]]
     ANCHORS = [[10, 13], [16, 30], [33, 23], [30, 61], [62, 45], [59, 119], [116, 90], [156, 198], [373, 326]]
@@ -79,7 +79,7 @@ def LoadData(source='', webcam=False, cam_freq=5, imgsz=(640,640), save_path='',
     """
     
     if webcam:
-        dataset = loadcam(source, cam_freq, imgsz, save_path, debug, calib_type.AR0135_1280_960)
+        dataset = loadcam(source, cam_freq, imgsz, save_path, debug, calib_type.AR0135_416_416)
     else:
         dataset = loadfiles(source, imgsz, save_path)
     return dataset
@@ -105,7 +105,8 @@ def object_matching(ai_model,sm_model,camera_config,dataset,ratio,imgsz,fps,debu
     -------
     """
     
-    
+    disarity_queue = queue.Queue(maxsize=1)
+    pred_queue = queue.Queue(maxsize=1)
     fx = camera_config.cam_matrix_left[0,0]
     fy = camera_config.cam_matrix_left[1,1]
     v = camera_config.cam_matrix_left[0,2]
@@ -120,11 +121,18 @@ def object_matching(ai_model,sm_model,camera_config,dataset,ratio,imgsz,fps,debu
             frame = str(dataset.count)
         else:
             frame = str(dataset.count)+'-'+str(dataset.frame)
-        img_left, img_right, img_ai, _=Image_Rectification(camera_config, img_left, img_right, imgsz=imgsz,debug=True,UMat=UMat)
-        disparity=sm_model.run(img_left,img_right)
-        preds, _ = ai_model.predict(img_ai)
-        # assert len(labels) == len(boxes),'predict labels not matching boxes'
+        img_left, img_right, img_ai=Image_Rectification(camera_config, img_left, img_right, imgsz=imgsz, debug=True, UMat=UMat)
+        sm_t = Thread(target=sm_model.run,args=(img_left,img_right,disarity_queue,UMat))
+        ai_t = Thread(target=ai_model.predict,args=(img_ai,pred_queue))
+        sm_t.start()
+        ai_t.start()
+        ai_t.join()
+        sm_t.join()
+        # disparity=sm_model.run(img_left,img_right,disarity_queue,UMat=UMat)
+        # preds, _ = ai_model.predict(img_ai,pred_queue)
         #%%%% TODO: 将一张图片的预测框逐条分开，并且还原到原始图像尺寸
+        disparity = disarity_queue.get()
+        preds = pred_queue.get()
         labels = []
         coords = []
         scores = []
@@ -156,12 +164,11 @@ def object_matching(ai_model,sm_model,camera_config,dataset,ratio,imgsz,fps,debu
                     temp[k] = disparity_centre(m, n, dx, dy, disparity, camera_config.focal_length, camera_config.baseline, camera_config.pixel_size)
                     k += 1
             
-            #%%%% TODO: 取众多框计算值的中位数
+            # %%%% TODO: 取众多框计算值的中位数
+                # print('depth: ',temp)
                 temp = np.sort(temp)
-                # temp_dis = temp[4]
                 temp = temp[temp!=-1.]
                 # print('depth: ',temp)
-                # print(math.floor(len(temp)/2))
                 if len(temp) == 0:
                     temp_dis = -1
                 elif (len(temp)%2 == 0) & (len(temp)>1):

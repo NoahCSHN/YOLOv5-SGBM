@@ -44,12 +44,16 @@ class BM:
         class_name=self.__class__.__name__
         print (class_name,"release")
     
-    def run(self,ImgL,ImgR):
+    def run(self,ImgL,ImgR,Queue,UMat=False):
         t0=time.time()
-        disparity = self.stereo.compute(ImgL,ImgR).astype(np.float32) / 16.0
+        if UMat:
+            disparity = self.stereo.compute(ImgL,ImgR).get().astype(np.float32) / 16.0
+        else:
+            disparity = self.stereo.compute(ImgL,ImgR).astype(np.float32) / 16.0
         # logging.info(f'\nBM Done. ({time.time() - t0:.3f}s)') #cp3.6
         logging.info('\nBM Done. (%.2fs)',(time.time() - t0)) #cp3.5
-        return disparity
+        Queue.put(disparity)
+        # return disparity
         
         
 class SGBM:
@@ -86,19 +90,13 @@ class SGBM:
         print (class_name,"release")
     
     @timethis
-    def run(self,ImgL,ImgR):
+    def run(self,ImgL,ImgR,Queue,UMat=False):
         t0 = time.time()
-        # self.imgL = ImgL
-        # self.imgR = ImgR
-        # logging.info(f'Images Inital Done. ({time.time() - t0:.3f}s)') #cp3.6
-        # logging.info('Images Inital Done. (%.2fs)',(time.time() - t0)) #cp3.5
-        if type(ImgL) == cv2.UMat:
+        if UMat:
             self.disparity = self.stereo.compute(ImgL, ImgR, False).get().astype(np.float32) / 16.0
         else:
             self.disparity = self.stereo.compute(ImgL, ImgR, False).astype(np.float32) / 16.0
-        # logging.info(f'SGBM Done. ({time.time() - t0:.3f}s)') #cp3.6
-        # logging.info('SGBM Done. (%.2fs)',(time.time() - t0)) #cp3.5
-        # print('SGBM Done. (%.2fs)'%(time.time() - t0))
+        Queue.put(self.disparity)
         return self.disparity
 
 def disparity_centre(x_centre, y_centre, x_diff, y_diff, disparity,focal,baseline,pixel_size):
