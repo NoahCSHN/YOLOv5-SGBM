@@ -1,5 +1,5 @@
 import numpy as np
-import argparse,logging,time
+import argparse,logging,time,math
 import cv2
 from matplotlib import pyplot as plt
 from utils.general import timethis
@@ -37,20 +37,21 @@ class BM:
         t0 = time.time()
         BM.count += 1
         self.stereo = cv2.StereoBM_create(48, 9)
-        # logging.info(f'\nBM Inital Done. ({time.time() - t0:.3f}s)') #cp3.6
         logging.info('\nBM Inital Done. (%.2fs)',(time.time() - t0)) #cp3.5
         
     def __del__(self):
         class_name=self.__class__.__name__
         print (class_name,"release")
     
+    @timethis
     def run(self,ImgL,ImgR,Queue,UMat=False):
         t0=time.time()
+        ImgL = cv2.cvtColor(ImgL, cv2.COLOR_BGR2GRAY)
+        ImgR = cv2.cvtColor(ImgR, cv2.COLOR_BGR2GRAY)
         if UMat:
             disparity = self.stereo.compute(ImgL,ImgR).get().astype(np.float32) / 16.0
         else:
             disparity = self.stereo.compute(ImgL,ImgR).astype(np.float32) / 16.0
-        # logging.info(f'\nBM Done. ({time.time() - t0:.3f}s)') #cp3.6
         logging.info('\nBM Done. (%.2fs)',(time.time() - t0)) #cp3.5
         Queue.put(disparity)
         # return disparity
@@ -70,7 +71,7 @@ class SGBM:
         self.window_size = 3
         self.stereo = cv2.StereoSGBM_create(
             minDisparity=0,
-            numDisparities=160,  # max_disp has to be dividable by 16 f. E. HH 192, 256
+            numDisparities=48,  # max_disp has to be dividable by 16 f. E. HH 192, 256
             blockSize=3,
             P1=8 * 3 * self.window_size ** 2,
             P2=32 * 3 * self.window_size ** 2,
@@ -81,9 +82,7 @@ class SGBM:
             preFilterCap=63,
             mode=cv2.STEREO_SGBM_MODE_SGBM_3WAY
             )
-        # logging.info(f'\nSGBM Inital Done. ({time.time() - t0:.3f}s)') #cp3.6
         logging.info('\nSGBM Inital Done. (%.2fs)',(time.time() - t0)) #cp3.5
-        # print('SGBM Inital Done. (%.2fs)'%(time.time() - t0)) #cp3.5
     
     def __del__(self):
         class_name=self.__class__.__name__
@@ -99,13 +98,13 @@ class SGBM:
         Queue.put(self.disparity)
         return self.disparity
 
-def disparity_centre(x_centre, y_centre, x_diff, y_diff, disparity,focal,baseline,pixel_size):
+def disparity_centre(raw_box,ratio,disparity,focal,baseline,pixel_size):
     """
     @description  : from disparity map get the depth prediction of the (x_centre,y_centre) point
     ---------
     @param  :
-        (x_centre,y_centre): type (int,int), the coordinate in pixel for depth prediction
-        (x_diff,y_diff): type (int,int), the unit in pixel for depth calculation
+        raw_box: the coordinates of the opposite angle of the prediction box
+        ratio: the distance between to centre point
         disparity: type array, disparity map
         focal: focal length in pixel unit 
         baseline: baseline in mm unit
@@ -114,35 +113,58 @@ def disparity_centre(x_centre, y_centre, x_diff, y_diff, disparity,focal,baselin
     @Returns  :
     -------
     """
-    p=[-2,-1,0,1,2]
-    d=np.zeros((25,),dtype=float)
-    dis_mean=0.
-    depth=0.
-    for i in range(5):
-        for j in range(5):
-            nx,ny=(x_centre+p[i]*x_diff),(y_centre+p[j]*y_diff)
-            nx,ny=int(nx),int(ny)
-            logging.debug('coordinates: %d,%d',nx,ny) #cp3.5
-            d.flat[5*i+j]=disparity[ny,nx]
-            logging.debug('disparity: %f',d.flat[5*i+j]) #cp3.5
-    d=d.ravel()
-    d=d[d>0.]
-    d=np.sort(d,axis=None)
-    # print(d)
-    if len(d) >= 5:
-        d=np.delete(d,[0,-1])
-        dis_mean = d.mean()
-        depth = focal*baseline/dis_mean
+    '''
+    logic: if the pixel number in the box in smaller than 225,than calculate the whole box pixels and get the average, 
+    otherwise, 
+    '''        
+    depth=[]
+    #%%%% TODO: 分9个图像框
+    # print(raw_box)
+    dx,dy=int((raw_box[2]-raw_box[0])*ratio),int((raw_box[3]-raw_box[1])*ratio)
+    if (dx == 0) and (dy == 0):
+        # %% caculate every pixel in box and get the Median
+        for i in range(raw_box[2]-raw_box[0]):
+            for j in range(raw_box[3]-raw_box[1]):
+                if disparity[(raw_box[0]+i),(raw_box[1]+j)] > 0:
+                    depth.append(disparity[(raw_box[0]+i),(raw_box[1]+j)])
     else:
-        depth = -1
-    #=========================================
-    # d=np.sort(d,axis=None)
-    # if len(d):       
-    #     dis_mean = d[round(len(d)/2)]
-    # else:
-    #     dis_mean = -1
-    #=========================================
-    return depth
+        cx,cy=int((raw_box[0]+raw_box[2])/2),int((raw_box[1]+raw_box[3])/2)
+        dw,dh=int((raw_box[2]-raw_box[0])/6),int((raw_box[3]-raw_box[1])/6)
+        cxcy=[(cx-2*dw,cy-2*dh),(cx,cy-2*dh),(cx+2*dw,cy-2*dh),\
+            (cx-2*dw,cy),(cx,cy),(cx+2*dw,cy),\
+            (cx-2*dw,cy+2*dh),(cx,cy+2*dh),(cx+2*dw,cy+2*dh)]
+        # print(cxcy)
+        # print(dx,dy)    
+
+        #%%%% TODO: 每个框计算深度均值  
+        for x_centre,y_centre in cxcy:
+            p=[-2,-1,0,1,2]
+            d=np.zeros((25,),dtype=float)
+            dis_mean=0.
+            for i in range(5):
+                for j in range(5):
+                    nx,ny=int(x_centre+p[i]*dx),int(y_centre+p[j]*dy)
+                    # print('(%d,%d)'%(nx,ny),end=' ')
+                    d.flat[5*i+j]=disparity[ny,nx]
+            d=d.ravel()
+            d=d[d>0.]
+            d=np.sort(d,axis=None)
+            # print(d)
+            if len(d) >= 5:
+                d=np.delete(d,[0,-1])
+                dis_mean = d.mean()
+                depth.append(dis_mean)
+    # %%%% TODO: 取众多框计算值的中位数 
+    # print('depth: ',depth)
+    depth.sort()
+    if len(depth) == 0:
+        temp_dis = -1
+    elif (len(depth)%2 == 0) & (len(depth)>1):
+        temp_dis = ((focal*baseline/depth[math.floor(len(depth)/2)])+(focal*baseline/depth[math.floor(len(depth)/2)-1]))/2
+    else:
+        temp_dis = focal*baseline/depth[math.floor(len(depth)/2)]
+    # print(temp_dis)
+    return temp_dis
 
 # %% standalone usage function
 def stereo_sgbm(ImgLPath='../data/images/left.png',ImgRPath='../data/images/right.png', path=True):

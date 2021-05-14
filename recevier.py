@@ -43,6 +43,7 @@ from geometry_msgs.msg import PolygonStamped,Point32
 
 import cv2,socket,numpy,time,select
 from multiprocessing import Process
+from utils.general import timethis,timeblock
 
 class rospublisher:
     """
@@ -142,41 +143,32 @@ def netdata_pipe(server_soc, videoWriter, pub):
     -------
     """  
     print('waiting for connect')
-    # while True:
-    #     try:
     conn, client_address = server_soc.accept()
-    print('connect from:' + str(client_address))   
-        #     if conn:
-        #         break
-        # except KeyboardInterrupt as e:
-        #     break
-        # except socket.timeout as e:
-        #     continue
-    # conn.setblocking(False)         
+    print('connect from:' + str(client_address))    
     block=1024 #1280*720
     Connect = False
     if conn:
         Connect = True
     while Connect:
-        start = time.time()
+        t0 = time.time()
         image_size=0
         coords=[]
         img_flag = False
         
-        stringData = conn.recv(block)#nt()只能转化由纯数字组成的字符串
 
+        stringData = conn.recv(block)#nt()只能转化由纯数字组成的字符串
+        # with timeblock('process time:'):
         if stringData != b'':
             if stringData.startswith(b'$Image'):
                 stringData = stringData.decode()
                 image_size=int(stringData.split(',')[1])
                 timestamp=stringData.split(',')[2:-1]
                 frame=stringData.split(',')[-1]
-                # print(timestamp)
                 coords = []
                 if opt.image:
                     conn.sendall('Ready for Image'.encode('utf-8'))
                     stringData = recvall(conn, (image_size))#nt()只能转化由纯数字组成的字符串
-                    img = numpy.frombuffer(stringData,numpy.uint8)  # 将获取到的字符流数据转换成1维数组 data = numpy.fromstring()           numpy.frombuffer
+                    img = numpy.frombuffer(stringData,numpy.uint8)  # 将获取到的字符流数据转换成1维数组 data = numpy.fromstring() numpy.frombuffer
                     decimg = cv2.imdecode(img, cv2.IMREAD_COLOR)  # 将数组解码成图像
                     pub.pub_img(decimg)
                 conn.sendall('Ready for Coordinates'.encode('utf-8'))
@@ -188,7 +180,7 @@ def netdata_pipe(server_soc, videoWriter, pub):
                 pub.pub_axis(coords,timestamp,frame,(len(coords)/6))
                 # =================================================================================================================================  
                 time.sleep(0.05)
-                print('process time = ', (time.time()-start))
+                print('Server recv: %d data in %.3f'%(image_size,time.time()-t0),end='\r')
                 # =================================================================================================================================
             else:
                 continue
@@ -200,19 +192,11 @@ if __name__ == '__main__':
     parser.add_argument('--image', action='store_true', help='show image mode')
     opt = parser.parse_args()
     pub=rospublisher()
-    # for i in range(30):
-    #     rostime=float(str(rospy.Time.now().secs)+'.'+str(rospy.Time.now().nsecs))
-    #     pytime=time.time()
-    #     diff=pytime - rostime
-    #     print(f'ROS time: {rostime}; PY time: {pytime}; minus: {diff}')
     address = (opt.ip, opt.port)#'192.168.1.104', 8004
     server_soc = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     server_soc.setsockopt(socket.SOL_SOCKET,socket.SO_REUSEADDR,1) #端口可复用
-    # server_soc.settimeout(0.001)
     server_soc.bind(address)
     server_soc.listen()
-    # fourcc = cv2.VideoWriter_fourcc('X', 'V', 'I','D')#avi格式
-    # videoWriter = cv2.VideoWriter('./runs/receive_video/%s.avi' % time.strftime("%Y-%m-%d-%H_%M_%S",time.localtime(time.time())) , fourcc, 1, (1280, 720))##%(str(time.strftime("%Y-%m-%d-%H:%M:%S",time.localtime())))
     videoWriter = []
     netdata_pipe(server_soc,videoWriter,pub)
     server_soc.close()

@@ -203,14 +203,14 @@ class RKNNDetector:
         gain = img_src.shape[:2][::-1]
         return self._predict(img_src, _img, gain, conf_thres, iou_thres, )
 
-    @timethis
-    def predict(self, img_src, Queue, conf_thres=0.4, iou_thres=0.45):
+    # @timethis
+    def predict(self,img_raw, img_src, gain, padding, Queue, conf_thres=0.4, iou_thres=0.45):
         """
         预测一张图片，预处理保持宽高比
         return: labels,boxes
         """
-        _img, gain, padding = letterbox(img_src, self.wh)
-        Queue.put(self._predict(img_src, _img, gain, padding, conf_thres, iou_thres), _img.shape)
+        # _img, gain, padding = letterbox(img_src, self.wh)
+        Queue.put(self._predict(img_raw, img_src, gain, padding, conf_thres, iou_thres))
         # return self._predict(img_src, _img, gain, padding, conf_thres, iou_thres), _img.shape
 
     def close(self):

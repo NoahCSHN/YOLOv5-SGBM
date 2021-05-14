@@ -9,6 +9,42 @@ import numpy as np
 from contextlib import contextmanager
 from enum import Enum
 
+def timethis(func):
+    """
+    @description  : a timecounter wrapper for a function
+    ---------
+    @param  :
+    -------
+    @Returns  : print the runtime and name of the function to the terminal 
+    -------
+    """
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs):
+        start = time.perf_counter()
+        r = func(*args, **kwargs)
+        end = time.perf_counter()
+        print('{}.{} : {:.3f}'.format(func.__module__, func.__name__, end - start),end='--')
+        return r
+    return wrapper
+
+@contextmanager
+def timeblock(label):
+    """
+    @description  : a timecounter wrapper for a section of code
+    ---------
+    @param  :
+    -------
+    @Returns  : print the runtime of a section of code to the terminal 
+    -------
+    """   
+    start = time.perf_counter()
+    try:
+        yield
+    finally:
+        end = time.perf_counter()
+        print('{} : {}'.format(label, end - start))
+
+
 def get_new_size(img, scale):
     if type(img) != cv2.UMat:
         return tuple(map(int, np.array(img.shape[:2][::-1]) * scale))
@@ -40,6 +76,7 @@ class AutoScale:
             self.__new_img = cv2.resize(self._src_img, self._new_size)
         return self.__new_img
 
+# @timethis
 def letterbox(img, new_wh=(416, 416), color=(114, 114, 114)):
     a = AutoScale(img, *new_wh)
     new_img = a.new_img
@@ -118,42 +155,6 @@ def confirm_dir(root_path,new_path):
         os.mkdir(path)
     return path
 
-def timethis(func):
-    """
-    @description  : a timecounter wrapper for a function
-    ---------
-    @param  :
-    -------
-    @Returns  : print the runtime and name of the function to the terminal 
-    -------
-    """
-    @functools.wraps(func)
-    def wrapper(*args, **kwargs):
-        start = time.perf_counter()
-        r = func(*args, **kwargs)
-        end = time.perf_counter()
-        print('{}.{} : {:.3f}'.format(func.__module__, func.__name__, end - start))
-        return r
-    return wrapper
-
-@contextmanager
-def timeblock(label):
-    """
-    @description  : a timecounter wrapper for a section of code
-    ---------
-    @param  :
-    -------
-    @Returns  : print the runtime of a section of code to the terminal 
-    -------
-    """   
-    start = time.perf_counter()
-    try:
-        yield
-    finally:
-        end = time.perf_counter()
-        print('{} : {}'.format(label, end - start))
-
-
 class socket_client():
     """
     @description  : handle tcp event
@@ -182,6 +183,7 @@ class socket_client():
             print(msg)
             sys.exit(1)         
     
+    # @timethis
     def send(self,image,coords,frame,imgsz=(416,416),debug=False):
         """
         @description  : send a packet to tcp server
@@ -197,13 +199,12 @@ class socket_client():
         -------
         """
         
-        t0=time.time()
         answer = []
         if debug:
             encode_param = [int(cv2.IMWRITE_JPEG_QUALITY), 100]
             ## 首先对图片进行编码，因为socket不支持直接发送图片
             # t1=time.time()
-            image,_,_ = letterbox(image,imgsz)
+            # image,_,_ = letterbox(image,imgsz)
             _, imgencode = cv2.imencode('.jpg', cv2.UMat(image))#
             data = np.array(imgencode)
             stringData = data.tostring()
@@ -247,7 +248,6 @@ class socket_client():
         while answer != 'Ready for next Frame':
             answer = self.sock.recv(32).decode('utf-8')
         # print('Recv from server: %s'%answer)
-        print('TCP transport use: %0.3f'%(time.time()-t0))
         # self.sock.close()
     
     def close(self):
@@ -263,3 +263,26 @@ class calib_type(Enum):
     AR0135_1280_720 = 1
     AR0135_1280_960 = 2
     AR0135_416_416  = 3
+    AR0135_640_640  = 4
+    AR0135_640_480  = 5
+
+class camera_mode:
+    def __init__(self,mode):
+        if mode == 0:
+            self.mode=calib_type.OV9714_1280_720
+            self.size=(1280,720)
+        elif mode == 1:
+            self.mode=calib_type.AR0135_1280_720
+            self.size=(1280,720)
+        elif mode == 2:
+            self.mode=calib_type.AR0135_1280_960
+            self.size=(1280,960)
+        elif mode == 3:
+            self.mode=calib_type.AR0135_416_416
+            self.size=(416,416)
+        elif mode == 4:
+            self.mode=calib_type.AR0135_640_640
+            self.size=(640,640)
+        else:
+            self.mode=calib_type.AR0135_640_480
+            self.size=(640,480)

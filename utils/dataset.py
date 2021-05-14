@@ -8,6 +8,8 @@ from pathlib import Path
 from itertools import repeat
 from multiprocessing.pool import ThreadPool
 from threading import Thread
+import threading
+import numpy as np
 from utils.general import confirm_dir,timethis,calib_type
 
 import cv2
@@ -37,6 +39,30 @@ class DATASET_NAMES():
     masks_names = ['mask','nomask']
     voc_split_names = ['bottle','chair','diningtable','person','pottedplant','sofa','tvmonitor']
     coco_split_names = ['person','sports ball','bottle','cup','chair','potted plant','cell phone', 'book']
+
+class pipeline:
+    def __init__(self,width=2560,height=960):
+        self.timestamp=0.
+        # self.image=np.zeros((height,width,3),dtype=np.uint8)
+        self.lock=threading.Lock()
+        self.lock.acquire()
+        self.start=True
+
+    def put(self,timestamp,img0):
+        if self.start != True:
+            self.lock.acquire()
+        else:
+            self.start = False
+        self.timestamp = timestamp
+        self.image = img0
+        self.lock.release()
+    
+    def get(self):
+        self.lock.acquire()
+        timestamp=self.timestamp
+        img0=self.image
+        self.lock.release()
+        return timestamp,img0
 
 class loadfiles:
     """
@@ -107,9 +133,10 @@ class loadfiles:
         else:
             # Read image
             self.count += 1
+            self.mode = 'image'
             img0 = cv2.imread(path)  # BGR
             assert img0 is not None, 'Image Not Found ' + path
-            print('========================new image========================')
+            # print('========================new image========================')
             print('image %d/%d %s: '%(self.count, self.nf, path), end='\n') #cp3.5
 
         # Padded resize
@@ -150,7 +177,7 @@ class loadcam:
     @description  : load real-time webcam data and create a iterator
     ---------
     @function  :
-    -------
+    ---------
     """
     
     # @timethis
@@ -167,29 +194,35 @@ class loadcam:
         self.time = 0
         self.writer = None
         self.cap = cv2.VideoCapture(pipe)  # video capture object
-        self.cap.set(cv2.CAP_PROP_FRAME_WIDTH,2560)
-        if cam_mode == calib_type.AR0135_1280_960 or cam_mode == calib_type.AR0135_416_416:
+        if cam_mode == calib_type.AR0135_1280_960.value or cam_mode == calib_type.AR0135_416_416.value or cam_mode == calib_type.AR0135_640_640.value:
+            self.cap.set(cv2.CAP_PROP_FRAME_WIDTH,2560)
             self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT,960) #AR0135
+        elif cam_mode == calib_type.AR0135_640_480.value:
+            self.cap.set(cv2.CAP_PROP_FRAME_WIDTH,1280)
+            self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT,480) #AR0135
         else:
+            self.cap.set(cv2.CAP_PROP_FRAME_WIDTH,2560)
             self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT,720) #OV9714
+        self.pipeline = pipeline(int(self.cap.get(cv2.CAP_PROP_FRAME_WIDTH)),int(self.cap.get(cv2.CAP_PROP_FRAME_HEIGHT)))
         self.cam_freq = cam_freq
         self.fps = self.cap.get(cv2.CAP_PROP_FPS)
-        self.queue = queue.LifoQueue(maxsize=self.fps)
-        bufsize = 2
+        self.size = (self.cap.get(cv2.CAP_PROP_FRAME_WIDTH),self.cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+        # self.queue = queue.LifoQueue(maxsize=self.fps)
+        bufsize = 1
         self.cap.set(cv2.CAP_PROP_BUFFERSIZE, bufsize)  # set buffer size
-        print('Camera run under %s fps'%(str(self.fps)))
+        print('Camera run under %s and %s fps'%(str(self.size),str(self.fps)))
         self.vid_file_path = confirm_dir(save_path,'webcam')
         self.img_file_path = confirm_dir(save_path,'webimg')
         self.new_video('test.avi')
         self.mode = 'webcam'
         self.count = -1
         self.frame = 0        
-        thread = Thread(target=self._update,args=[],daemon=True)
-        thread.start()
+        self.thread = Thread(target=self._update,args=[],daemon=True)
+        self.thread.start()
     
     def _update(self):
         while True:
-            self.count += 1
+            self.frame += 1
             # Read frame
             if self.pipe in [0,1,2,3,4,5]:  # local camera
                 ret_val, img0 = self.cap.read()
@@ -204,40 +237,39 @@ class loadcam:
                         if ret_val:
                             break
             assert ret_val, 'Camera Error %d'%self.pipe #cp3.5
-            TimeStamp = str(time.time()).split('.')
-            if len(TimeStamp[1])<9:
-                for i in range(9-len(TimeStamp[1])):
-                    TimeStamp[1] += '0'
-            
-            w = img0.shape[1]
-            h = img0.shape[0]
-            w1 = int(w/2)
-            save_file = os.path.join(self.img_file_path,(str(self.frame)+'.bmp'))
-            if self.debug:
-                cv2.imwrite(save_file,img0)
-            imgl = img0[:,:w1,:]
-            imgr = img0[:,w1:,:]
-            self.queue.put((TimeStamp,imgl,imgr,(h,w1)))
+            TimeStamp = time.time()-0.08  #cv2.cap.read() average latency is 80ms
+            self.pipeline.put(TimeStamp,img0)
+            # self.queue.put((TimeStamp,imgl,imgr))
 
     def __iter__(self):
         return self
 
     # @timethis
     def __next__(self):
-        while True:
-            try:
-                TimeStamp, imgl, imgr, imgs = self.queue.get()
-                break
-            except Exception as e:
-                print('Read camera error: %s'%e)
-        print('=========================webcam %d ======================='%self.frame) #cp3.5                
-        self.frame += 1
-        img_path = 'webcam.jpg'
         runtime = time.time() - self.time
         if runtime < 1/self.cam_freq:
-            time.sleep(round(1/self.cam_freq-runtime,3))
+            time.sleep(round(1/self.cam_freq-runtime,3))        
+        while True:
+            # TimeStamp, imgl, imgr = self.queue.get()
+            TimeStamp,img0 = self.pipeline.get()
+            if TimeStamp != []:
+                break
+        # print('========================= webcam %d ======================='%self.frame,end='\r') #cp3.5    
+        TimeStamp = str(time.time()).split('.')
+        if len(TimeStamp[1])<9:
+            for i in range(9-len(TimeStamp[1])):
+                TimeStamp[1] += '0'         
+        w = img0.shape[1]
+        w1 = int(w/2)
+        save_file = os.path.join(self.img_file_path,(str(self.frame)+'.bmp'))
+        if self.debug:
+            cv2.imwrite(save_file,img0)
+        imgl = img0[:,:w1,:]
+        imgr = img0[:,w1:,:]                   
+        self.count += 1
+        img_path = 'webcam.jpg'
         self.time = time.time()
-        return img_path, imgl, imgr, imgs, TimeStamp, None
+        return img_path, imgl, imgr, None, TimeStamp, None
 
     def get_vid_dir(self,path):
         self.vid_file_path = path

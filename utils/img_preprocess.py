@@ -13,7 +13,7 @@ from utils.stereoconfig import stereoCamera
 import os
 from pathlib import Path
 from utils.rknn_detect_yolov5 import letterbox
-from utils.general import timethis,timeblock
+from utils.general import timethis,timeblock,calib_type
 # from pcl import pcl_visualization
  
 
@@ -98,8 +98,8 @@ def resize_convert(imgl_rectified, imgr_rectified, imgsz=640, stride=32):
     imgr_rectified = np.ascontiguousarray(imgr_rectified)
     return img_ai, imgl_rectified, imgr_rectified
  
-@timethis
-def Image_Rectification(camera_config, img_left, img_right, imgsz=640, path=False, debug=False, UMat=False):
+# @timethis
+def Image_Rectification(camera_config, img_left, img_right, imgsz=640, path=False, debug=False, UMat=False, cam_mode=4):
     """
     @description  : stereo camera calibration
     ---------
@@ -131,42 +131,42 @@ def Image_Rectification(camera_config, img_left, img_right, imgsz=640, path=Fals
     else:
         iml = img_left  # left
         imr = img_right # right
-    img_ai = iml
     if UMat:
         iml = cv2.UMat(iml)  # left
-        imr = cv2.UMat(imr) # right        
-        height, width = iml.get().shape[0:2]
-    else:
-        height, width = iml.shape[0:2]
-    with timeblock('letterbox'):
-        iml = letterbox(iml, imgsz)[0]
-        imr = letterbox(imr, imgsz)[0]
-    
+        imr = cv2.UMat(imr) # right          
     # 读取相机内参和外参
-    config = camera_config
- 
-    # 立体校正
-    iml_rectified, imr_rectified = rectifyImage(iml, imr, config.map1x, config.map1y, config.map2x, config.map2y)
-    # if UMat:
-    #     img_ai_raw = cv2.UMat.get(iml_rectified)
-    # else:
-    #     img_ai_raw = iml_rectified
-    # 图像缩放
-    # iml_rectified = letterbox(iml_rectified, imgsz)[0]
-    # imr_rectified = letterbox(imr_rectified, imgsz)[0]
-    # iml_rectified = np.ascontiguousarray(iml_rectified)
-    # imr_rectified = np.ascontiguousarray(imr_rectified)
+    config = camera_config        
+    if cam_mode == calib_type.AR0135_416_416.value or cam_mode == calib_type.AR0135_640_640.value:
+        if UMat:
+            img_raw = cv2.UMat.get(iml)
+        else:
+            img_raw = iml
+        iml, gain, padding = letterbox(iml, imgsz)
+        imr = letterbox(imr, imgsz)[0]
+        # 立体校正
+        iml_rectified, imr_rectified = rectifyImage(iml, imr, config.map1x, config.map1y, config.map2x, config.map2y)
+    else:
+        # 立体校正
+        iml_rectified, imr_rectified = rectifyImage(iml, imr, config.map1x, config.map1y, config.map2x, config.map2y)
+        if UMat:
+            img_raw = cv2.UMat.get(iml_rectified)
+        else:
+            img_raw = iml_rectified
+        # 图像缩放
+        iml_rectified, gain, padding = letterbox(iml_rectified, imgsz)
+        imr_rectified = letterbox(imr_rectified, imgsz)[0]
+    iml_rectified = np.ascontiguousarray(iml_rectified)
+    imr_rectified = np.ascontiguousarray(imr_rectified)
     # save for debug
     # cv2.imwrite('/home/bynav/AI_SGBM/runs/detect/exp/Left1_rectified.bmp', iml_rectified)
     # cv2.imwrite('/home/bynav/AI_SGBM/runs/detect/exp/Right1_rectified.bmp', imr_rectified)
-    # print(Q)
  
     # if debug:
     # 绘制等间距平行线，检查立体校正的效果
         # line = draw_line(iml_rectified, imr_rectified)
         # cv2.imwrite('./runs/detect/test/line.png', line)
  
-    return iml_rectified,imr_rectified,img_ai
+    return img_raw, iml_rectified, imr_rectified, gain, padding
 
 if __name__ == '__main__':
     config = stereoCamera()
