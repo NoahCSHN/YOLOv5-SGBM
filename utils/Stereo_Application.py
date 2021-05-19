@@ -2,7 +2,7 @@ import numpy as np
 import argparse,logging,time,math
 import cv2
 from matplotlib import pyplot as plt
-from utils.general import timethis
+from utils.general import calib_type, timethis
 
 class Cursor:
     def __init__(self, ax):
@@ -33,17 +33,22 @@ class BM:
     -------
     """
     count=0
-    def __init__(self):
+    def __init__(self,cam_mode):
         t0 = time.time()
         BM.count += 1
-        self.stereo = cv2.StereoBM_create(48, 9)
+        if cam_mode == calib_type.AR0135_640_480:
+            self.stereo = cv2.StereoBM_create(64, 9)
+        else:
+            self.stereo = cv2.StereoBM_create(48, 9)
+        self.stereo.setUniquenessRatio(40)
+        self.stereo.setTextureThreshold(20)
         logging.info('\nBM Inital Done. (%.2fs)',(time.time() - t0)) #cp3.5
         
     def __del__(self):
         class_name=self.__class__.__name__
         print (class_name,"release")
     
-    @timethis
+    # @timethis
     def run(self,ImgL,ImgR,Queue,UMat=False):
         t0=time.time()
         ImgL = cv2.cvtColor(ImgL, cv2.COLOR_BGR2GRAY)
@@ -65,7 +70,7 @@ class SGBM:
     -------
     """  
     count=0
-    def __init__(self):
+    def __init__(self,cam_mode):
         t0 = time.time()
         SGBM.count += 1
         self.window_size = 3
@@ -88,7 +93,7 @@ class SGBM:
         class_name=self.__class__.__name__
         print (class_name,"release")
     
-    @timethis
+    # @timethis
     def run(self,ImgL,ImgR,Queue,UMat=False):
         t0 = time.time()
         if UMat:

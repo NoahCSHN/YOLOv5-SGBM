@@ -158,13 +158,13 @@ def Image_Rectification(camera_config, img_left, img_right, imgsz=640, path=Fals
     iml_rectified = np.ascontiguousarray(iml_rectified)
     imr_rectified = np.ascontiguousarray(imr_rectified)
     # save for debug
-    # cv2.imwrite('/home/bynav/AI_SGBM/runs/detect/exp/Left1_rectified.bmp', iml_rectified)
-    # cv2.imwrite('/home/bynav/AI_SGBM/runs/detect/exp/Right1_rectified.bmp', imr_rectified)
+    # cv2.imwrite('./runs/detect/test/Left1_rectified.bmp', iml_rectified)
+    # cv2.imwrite('./runs/detect/test/Right1_rectified.bmp', imr_rectified)
  
-    # if debug:
+    if debug:
     # 绘制等间距平行线，检查立体校正的效果
-        # line = draw_line(iml_rectified, imr_rectified)
-        # cv2.imwrite('./runs/detect/test/line.png', line)
+        line = draw_line(iml_rectified, imr_rectified)
+        cv2.imwrite('./runs/detect/test/line.png', line)
  
     return img_raw, iml_rectified, imr_rectified, gain, padding
 

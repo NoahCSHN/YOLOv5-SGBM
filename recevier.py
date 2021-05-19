@@ -64,6 +64,7 @@ class rospublisher:
         rospublisher.count -= 1
         print ("RosPublisher release")
 
+    # @timethis
     def pub_axis(self,coords,timestamp,frame,num):
         """
         @description  : publisher the coordinates of the avoid object to ROS 
@@ -103,7 +104,8 @@ class rospublisher:
                 coord_msg.polygon.points[4*i+3].z=float(coords[i*6+4])/1000
             
         self._coor_pub.publish(coord_msg)
-            
+
+    # @timethis    
     def pub_img(self,img):
         bridge=CvBridge()
         self._img_pub.publish(bridge.cv2_to_imgmsg(img, encoding="passthrough"))
@@ -151,36 +153,38 @@ def netdata_pipe(server_soc, videoWriter, pub):
         Connect = True
     while Connect:
         t0 = time.time()
-        image_size=0
+        image_length=0
         coords=[]
         img_flag = False
         
 
         stringData = conn.recv(block)#nt()只能转化由纯数字组成的字符串
-        # with timeblock('process time:'):
         if stringData != b'':
             if stringData.startswith(b'$Image'):
-                stringData = stringData.decode()
-                image_size=int(stringData.split(',')[1])
-                timestamp=stringData.split(',')[2:-1]
-                frame=stringData.split(',')[-1]
-                coords = []
-                if opt.image:
-                    conn.sendall('Ready for Image'.encode('utf-8'))
-                    stringData = recvall(conn, (image_size))#nt()只能转化由纯数字组成的字符串
-                    img = numpy.frombuffer(stringData,numpy.uint8)  # 将获取到的字符流数据转换成1维数组 data = numpy.fromstring() numpy.frombuffer
-                    decimg = cv2.imdecode(img, cv2.IMREAD_COLOR)  # 将数组解码成图像
-                    pub.pub_img(decimg)
-                conn.sendall('Ready for Coordinates'.encode('utf-8'))
-                stringData = conn.recv(block)#nt()只能转化由纯数字组成的字符串
-                stringData = stringData.decode()
-                coords=stringData.split(',')[1:-1]
-                assert len(coords) % 6 == 0,'coords length error'
-                conn.sendall('Ready for next Frame'.encode('utf-8'))
-                pub.pub_axis(coords,timestamp,frame,(len(coords)/6))
+                with timeblock('process time:'):
+                    stringData = stringData.decode()
+                    image_length=int(stringData.split(',')[1])
+                    img_resolution = stringData.split(',')[2:4]
+                    timestamp=stringData.split(',')[4:-1]
+                    frame=stringData.split(',')[-1]
+                    coords = []
+                    if opt.image:
+                        conn.sendall('Ready for Image'.encode('utf-8'))
+                        stringData = recvall(conn, (image_length))#nt()只能转化由纯数字组成的字符串
+                        img = numpy.frombuffer(stringData,numpy.uint8)  # 将获取到的字符流数据转换成1维数组 data = numpy.fromstring() numpy.frombuffer
+                        img = numpy.reshape(img,(int(img_resolution[0]),int(img_resolution[1]),3))
+                        # decimg = cv2.imdecode(img, cv2.IMREAD_COLOR)  # 将数组解码成图像
+                        pub.pub_img(img)
+                    conn.sendall('Ready for Coordinates'.encode('utf-8'))
+                    stringData = conn.recv(block)#nt()只能转化由纯数字组成的字符串
+                    stringData = stringData.decode()
+                    coords=stringData.split(',')[1:-1]
+                    assert len(coords) % 6 == 0,'coords length error'
+                    conn.sendall('Ready for next Frame'.encode('utf-8'))
+                    pub.pub_axis(coords,timestamp,frame,(len(coords)/6))
                 # =================================================================================================================================  
                 time.sleep(0.05)
-                print('Server recv: %d data in %.3f'%(image_size,time.time()-t0),end='\r')
+                # print('Server recv: %d data in %.3f'%(image_size,time.time()-t0),end='\r')
                 # =================================================================================================================================
             else:
                 continue

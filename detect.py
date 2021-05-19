@@ -44,11 +44,11 @@ def platform_init(bm_model=False, imgsz=640, device='pc', tcp_address=('192.168.
     if bm_model:
         if BM.count != 0:
             del SM
-        SM = BM()
+        SM = BM(cam_mode.mode)
     else:
         if SGBM.count != 0:
             del SM
-        SM = SGBM()
+        SM = SGBM(cam_mode.mode)
     #init AI model
     MASKS = [[0,1,2],[3,4,5],[6,7,8]]
     ANCHORS = [[10, 13], [16, 30], [33, 23], [30, 61], [62, 45], [59, 119], [116, 90], [156, 198], [373, 326]]
@@ -121,15 +121,13 @@ def object_matching(ai_model,sm_model,camera_config,dataset,ratio,imgsz,fps,debu
         else:
             frame = str(dataset.count)+'-'+str(dataset.frame)
         img_raw, img_left, img_right, gain, padding=Image_Rectification(camera_config, img_left, img_right, imgsz=imgsz, debug=True, UMat=UMat, cam_mode=cam_mode)
-        with timeblock('process image:'):
-            sm_t = Thread(target=sm_model.run,args=(img_left,img_right,disarity_queue,UMat))
-            ai_t = Thread(target=ai_model.predict,args=(img_raw, img_left, gain, padding, pred_queue))
-            sm_t.start()
-            ai_t.start()
-            ai_t.join()
-            sm_t.join()
-        # disparity=sm_model.run(img_left,img_right,disarity_queue,UMat=UMat)
-        # preds,    _ = ai_model.predict(img_ai,pred_queue)
+        # with timeblock('process image:'):
+        sm_t = Thread(target=sm_model.run,args=(img_left,img_right,disarity_queue,UMat))
+        ai_t = Thread(target=ai_model.predict,args=(img_raw, img_left, gain, padding, pred_queue))
+        sm_t.start()
+        ai_t.start()
+        ai_t.join()
+        sm_t.join()
         #%%%% TODO: 将一张图片的预测框逐条分开，并且还原到原始图像尺寸
         disparity = disarity_queue.get()
         preds = pred_queue.get()
@@ -167,7 +165,7 @@ def object_matching(ai_model,sm_model,camera_config,dataset,ratio,imgsz,fps,debu
                 plot_one_box(xyxy, img_left, label=label, line_thickness=2)             
                 index += 1
         # %%% send result
-        soc_client.send(img_left, distance, frame, imgsz, visual)
+        soc_client.send(img_left, distance, frame, imgsz, 0.5, visual)
         # %%% TODO: 保存结果
         # with timeblock('write file'):
         if args.save_result:
@@ -175,7 +173,7 @@ def object_matching(ai_model,sm_model,camera_config,dataset,ratio,imgsz,fps,debu
                 file_path = confirm_dir(args.save_path,'images')
                 save_path = os.path.join(file_path,str(dataset.count)+'.bmp')
                 cv2.imwrite(save_path, img_left)
-                time.sleep(1)
+                # time.sleep(1)
             elif dataset.mode == 'video' or dataset.mode == 'webcam':
                 file_path = os.path.join(args.save_path,dataset.mode)
                 dataset.get_vid_dir(file_path)

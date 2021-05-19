@@ -23,7 +23,7 @@ def timethis(func):
         start = time.perf_counter()
         r = func(*args, **kwargs)
         end = time.perf_counter()
-        print('{}.{} : {:.3f}'.format(func.__module__, func.__name__, end - start),end='--')
+        print('{}.{} : {:.3f}'.format(func.__module__, func.__name__, end - start))
         return r
     return wrapper
 
@@ -42,7 +42,7 @@ def timeblock(label):
         yield
     finally:
         end = time.perf_counter()
-        print('{} : {}'.format(label, end - start))
+        print('{} : {}'.format(label, end - start),end='\r')
 
 
 def get_new_size(img, scale):
@@ -184,7 +184,7 @@ class socket_client():
             sys.exit(1)         
     
     # @timethis
-    def send(self,image,coords,frame,imgsz=(416,416),debug=False):
+    def send(self,image,coords,frame,imgsz=(416,416),quality=0.5,debug=False):
         """
         @description  : send a packet to tcp server
         ---------
@@ -192,7 +192,7 @@ class socket_client():
             image: the cv2 image mat (imgsz[0],imgsz[1])
             coords: the coords of the opposite angle of the object rectangle,(n,(x1,y1,z1,x2,y2,z2))
             frame: frame number of the pipe stream
-            imgsz: the image resolution(height,width)
+            imgsz: the image resolution(height,width), reserved
             debug: type bool, if true, add a image in imgsz shape to tcp transmission packet        
         -------
         @Returns  : None
@@ -201,30 +201,25 @@ class socket_client():
         
         answer = []
         if debug:
-            encode_param = [int(cv2.IMWRITE_JPEG_QUALITY), 100]
+            encode_param = [int(cv2.IMWRITE_JPEG_QUALITY), int(quality*100)]
             ## 首先对图片进行编码，因为socket不支持直接发送图片
-            # t1=time.time()
             # image,_,_ = letterbox(image,imgsz)
-            _, imgencode = cv2.imencode('.jpg', cv2.UMat(image))#
-            data = np.array(imgencode)
-            stringData = data.tostring()
-            # print('image encode: (%s)'%(time.time()-t1))
+            # _, imgencode = cv2.imencode('.bmp', cv2.UMat(image),encode_param)#
+            # data = np.array(imgencode)
+            # stringData = data.tostring()
+            stringData = np.ravel(image)
+            print(len(stringData))
             ## 首先发送图片编码后的长度
-            header='$Image,'+str(len(stringData))+','+str(coords[0][0])+','+str(coords[0][1])+','+str(frame)
-            # print(header)
+            header='$Image,'+str(len(stringData))+','+str(imgsz[0])+','+str(imgsz[1])+','+str(coords[0][0])+','+str(coords[0][1])+','+str(frame)
             self.sock.sendall(header.encode('utf-8').ljust(64)) 
-            # print('Send Image size done, waiting for answer')
             while answer != 'Ready for Image':
                 answer = self.sock.recv(32).decode('utf-8')
-            # print('Recv from server: %s'%answer)
             self.sock.sendall(stringData)
-            # print('Send Image done, waiting for answer')
         else:
             header='$Image,'+str('0')+','+str(coords[0][0])+','+str(coords[0][1])
             self.sock.sendall(header.encode('utf-8').ljust(32))
         while answer != 'Ready for Coordinates':
             answer = self.sock.recv(32).decode('utf-8')
-        # print('Recv from server: %s'%answer)
 
         coordData = '$Coord'
         for item in coords[1:]:
@@ -242,13 +237,9 @@ class socket_client():
             coordData += str(item[5])
         coordData += ',*FC'
         ## 然后发送编码的内容
-        # print(coordData)
         self.sock.sendall(coordData.encode('utf-8'))
-        # print('Send Coordinates, waiting for answer')
         while answer != 'Ready for next Frame':
             answer = self.sock.recv(32).decode('utf-8')
-        # print('Recv from server: %s'%answer)
-        # self.sock.close()
     
     def close(self):
         if self.sock:
