@@ -4,7 +4,7 @@
 @Description: main function for YOLOv5 + SGBM model running on RK3399pro platform 
 @Date     :2021/04/23 19:56:56
 @Author      :Noah
-@version      :version : 210501404
+@version      :version : 21052005
 
 '''
 import os,logging,sys,argparse,time,math,queue
@@ -15,7 +15,7 @@ import matplotlib.pyplot as plt
 from threading import Thread
 from utils.rknn_detect_yolov5 import  RKNNDetector,plot_one_box
 from utils.img_preprocess import Image_Rectification
-from utils.Stereo_Application import SGBM,BM,disparity_centre
+from utils.Stereo_Application import Stereo_Matching,disparity_centre
 from utils.dataset import DATASET_NAMES,loadfiles,loadcam
 from utils.stereoconfig import stereoCamera
 from utils.general import confirm_dir,timethis,timeblock,socket_client,calib_type,camera_mode
@@ -41,14 +41,9 @@ def platform_init(bm_model=False, imgsz=640, device='pc', tcp_address=('192.168.
     #init stereo matching model
     cam_mode = camera_mode(args.cam_type)
     soc_client=socket_client(address=tcp_address)
-    if bm_model:
-        if BM.count != 0:
-            del SM
-        SM = BM(cam_mode.mode)
-    else:
-        if SGBM.count != 0:
-            del SM
-        SM = SGBM(cam_mode.mode)
+    if Stereo_Matching.count != 0:
+        del SM
+    SM = Stereo_Matching(cam_mode.mode,bm_model)
     #init AI model
     MASKS = [[0,1,2],[3,4,5],[6,7,8]]
     ANCHORS = [[10, 13], [16, 30], [33, 23], [30, 61], [62, 45], [59, 119], [116, 90], [156, 198], [373, 326]]
@@ -155,17 +150,17 @@ def object_matching(ai_model,sm_model,camera_config,dataset,ratio,imgsz,fps,debu
 
             # %%%% TODO: 将最终深度结果画到图像里
                 xyxy = [raw_box[0],raw_box[1],raw_box[2],raw_box[3]]
-                label = str(label)+':'+str(round(score,2)) #cp3.5
-                plot_one_box(xyxy, img_left, label=label, line_thickness=2)
-                xyxy = [int((raw_box[0]+raw_box[2])/2)-2*int((raw_box[2]-raw_box[0])*ratio),\
-                        int((raw_box[1]+raw_box[3])/2)-2*int((raw_box[3]-raw_box[1])*ratio),\
-                        int((raw_box[0]+raw_box[2])/2)+2*int((raw_box[2]-raw_box[0])*ratio),\
-                        int((raw_box[1]+raw_box[3])/2)+2*int((raw_box[3]-raw_box[1])*ratio)]
+                # xyxy = [int((raw_box[0]+raw_box[2])/2)-2*int((raw_box[2]-raw_box[0])*ratio),\
+                #         int((raw_box[1]+raw_box[3])/2)-2*int((raw_box[3]-raw_box[1])*ratio),\
+                #         int((raw_box[0]+raw_box[2])/2)+2*int((raw_box[2]-raw_box[0])*ratio),\
+                #         int((raw_box[1]+raw_box[3])/2)+2*int((raw_box[3]-raw_box[1])*ratio)]                
+                # label = str(label)+':'+str(round(score,2))+'-'+str(round(temp_dis,2)) #cp3.5
+                # plot_one_box(xyxy, img_left, label=label, line_thickness=2)
                 label = str(round(temp_dis,2)) #cp3.5
-                plot_one_box(xyxy, img_left, label=label, line_thickness=2)             
+                plot_one_box(xyxy, img_left, label=label, line_thickness=1)             
                 index += 1
         # %%% send result
-        soc_client.send(img_left, distance, frame, imgsz, 0.5, visual)
+        soc_client.send(img_left, disparity, distance, frame, imgsz, 0.5, visual)
         # %%% TODO: 保存结果
         # with timeblock('write file'):
         if args.save_result:

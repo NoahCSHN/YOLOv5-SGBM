@@ -184,7 +184,7 @@ class socket_client():
             sys.exit(1)         
     
     # @timethis
-    def send(self,image,coords,frame,imgsz=(416,416),quality=0.5,debug=False):
+    def send(self,image,disparity,coords,frame,imgsz=(416,416),quality=0.5,debug=False):
         """
         @description  : send a packet to tcp server
         ---------
@@ -208,13 +208,16 @@ class socket_client():
             # data = np.array(imgencode)
             # stringData = data.tostring()
             stringData = np.ravel(image)
-            print(len(stringData))
+            disparity_color = cv2.applyColorMap(cv2.convertScaleAbs(disparity, alpha=256/48), cv2.COLORMAP_JET)
             ## 首先发送图片编码后的长度
-            header='$Image,'+str(len(stringData))+','+str(imgsz[0])+','+str(imgsz[1])+','+str(coords[0][0])+','+str(coords[0][1])+','+str(frame)
+            header='$Image,'+str(len(stringData))+','+str(len(np.ravel(disparity_color)))+','+str(imgsz[0])+','+str(imgsz[1])+','+str(coords[0][0])+','+str(coords[0][1])+','+str(frame)
             self.sock.sendall(header.encode('utf-8').ljust(64)) 
             while answer != 'Ready for Image':
                 answer = self.sock.recv(32).decode('utf-8')
             self.sock.sendall(stringData)
+            while answer != 'Ready for Disparity Image':
+                answer = self.sock.recv(64).decode('utf-8')
+            self.sock.sendall(np.ravel(disparity_color))
         else:
             header='$Image,'+str('0')+','+str(coords[0][0])+','+str(coords[0][1])
             self.sock.sendall(header.encode('utf-8').ljust(32))

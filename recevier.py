@@ -58,6 +58,7 @@ class rospublisher:
         rospy.init_node('AvoidModel', anonymous=True)
         self._coor_pub=rospy.Publisher('Avoid_Object_Position',PolygonStamped,queue_size=10)    
         self._img_pub=rospy.Publisher('Postproc_Images',Image,queue_size=10)
+        self._cloud_img_pub=rospy.Publisher('Disparity_Images',Image,queue_size=10)
         self.r=rospy.Rate(1)
 
     def __del__(self):
@@ -109,6 +110,10 @@ class rospublisher:
     def pub_img(self,img):
         bridge=CvBridge()
         self._img_pub.publish(bridge.cv2_to_imgmsg(img, encoding="passthrough"))
+
+    def pub_cloud_img(self,img):
+        bridge=CvBridge()
+        self._cloud_img_pub.publish(bridge.cv2_to_imgmsg(img, encoding="passthrough"))
 
 # 接受图片及大小的信息
 def recvall(sock, count):#读取count长度的数据
@@ -164,8 +169,9 @@ def netdata_pipe(server_soc, videoWriter, pub):
                 with timeblock('process time:'):
                     stringData = stringData.decode()
                     image_length=int(stringData.split(',')[1])
-                    img_resolution = stringData.split(',')[2:4]
-                    timestamp=stringData.split(',')[4:-1]
+                    dis_img_length = int(stringData.split(',')[2])
+                    img_resolution = stringData.split(',')[3:5]
+                    timestamp=stringData.split(',')[5:-1]
                     frame=stringData.split(',')[-1]
                     coords = []
                     if opt.image:
@@ -173,8 +179,12 @@ def netdata_pipe(server_soc, videoWriter, pub):
                         stringData = recvall(conn, (image_length))#nt()只能转化由纯数字组成的字符串
                         img = numpy.frombuffer(stringData,numpy.uint8)  # 将获取到的字符流数据转换成1维数组 data = numpy.fromstring() numpy.frombuffer
                         img = numpy.reshape(img,(int(img_resolution[0]),int(img_resolution[1]),3))
-                        # decimg = cv2.imdecode(img, cv2.IMREAD_COLOR)  # 将数组解码成图像
+                        conn.sendall('Ready for Disparity Image'.encode('utf-8'))
+                        stringData = recvall(conn,(dis_img_length))
+                        dis_img = numpy.frombuffer(stringData,numpy.uint8)  # 将获取到的字符流数据转换成1维数组 data = numpy.fromstring() numpy.frombuffer
+                        dis_img = numpy.reshape(dis_img,(int(img_resolution[0]),int(img_resolution[1]),3))
                         pub.pub_img(img)
+                        pub.pub_cloud_img(dis_img)
                     conn.sendall('Ready for Coordinates'.encode('utf-8'))
                     stringData = conn.recv(block)#nt()只能转化由纯数字组成的字符串
                     stringData = stringData.decode()
