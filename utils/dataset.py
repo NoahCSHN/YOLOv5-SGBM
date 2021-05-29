@@ -78,7 +78,10 @@ class loadfiles:
         if '*' in p:
             files = sorted(glob.glob(p, recursive=True))  # glob
         elif os.path.isdir(p):
-            files = sorted(glob.glob(os.path.join(p, '*.*')), key=lambda x: int(os.path.basename(x).split('.')[0]))  # dir
+            try:
+                files = sorted(glob.glob(os.path.join(p, '*.*')), key=lambda x: int(os.path.basename(x).split('.')[0]))  # dir
+            except:
+                files = sorted(glob.glob(os.path.join(p, '*.*')))  # dir
         elif os.path.isfile(p):
             files = [p]  # files
         else:
@@ -95,6 +98,7 @@ class loadfiles:
         self.video_flag = [False] * ni + [True] * nv
         self.mode = 'image'
         self.writer = None          #debug function
+        self.file_name = 'Orign'
         if any(videos):
             self.new_video(videos[0])  # new video
         else:
@@ -127,6 +131,7 @@ class loadfiles:
                     self.new_video(path)
                     ret_val, img0 = self.cap.read()
 
+            self.file_name = path+'_'+self.frame
             self.frame += 1
             print('video %d/%d (%d/%d) %s: '%(self.count + 1,self.nf,self.frame,self.nframes,path), end='') #cp3.5
 
@@ -135,6 +140,7 @@ class loadfiles:
             self.count += 1
             self.mode = 'image'
             img0 = cv2.imread(path)  # BGR
+            self.file_name = os.path.split(path)[-1]
             assert img0 is not None, 'Image Not Found ' + path
             # print('========================new image========================')
             print('image %d/%d %s: '%(self.count, self.nf, path), end='\n') #cp3.5

@@ -202,8 +202,9 @@ class stereoCamera(object):
             self.baseline = 44.948428632946  # 单位：mm， 为平移向量的第一个参数（取绝对值）
             
             # pixel size unit: mm
-            self.pixel_size = 0.00375        
-        else:
+            self.pixel_size = 0.00375    
+            
+        elif mode == calib_type.AR0135_640_480.value:
             # %% 640x640
             # 左相机内参
             print('Camera AR0135 640x480')
@@ -237,8 +238,43 @@ class stereoCamera(object):
             self.baseline = 45.0729106116333  # 单位：mm， 为平移向量的第一个参数（取绝对值）
             
             # pixel size unit: mm
-            self.pixel_size = 0.00375                                   
+            self.pixel_size = 0.00375   
 
+        else:                                
+            # %% 416X416
+            # 左相机内参
+            print('Datasets Middlebury 416x416')
+            self.cam_matrix_left = np.array([[4152.073, 0, 1288.147],
+                                            [0., 4152.073, 973.571],
+                                            [0., 0., 1.]])
+            # 右相机内参
+            self.cam_matrix_right = np.array([[4152.073, 0, 1501.231],
+                                            [0., 4152.073, 973.571],
+                                            [0., 0., 1.]])
+    
+            # 左右相机畸变系数:[k1, k2, p1, p2, k3]
+            self.distortion_l = np.array([[0.0219089239325666, 0.00460092573614185, -0.00646591760327415, 0.0109270275959497, -0.0867620227422152]])
+            self.distortion_r = np.array([[0.0272662496202452, -0.0424029960645065, -0.00484492636909076, 0.0100349479349904, 0.00826485872616951]])
+    
+            # 旋转矩阵
+            self.R = np.array([[0.999975518009243, 0.000152432767973579, -0.00699572343628832],
+                            [-0.000126983617991523, 0.999993373974003, 0.00363811534319693],
+                            [0.00699623165043493, -0.00363713793261832, 0.999968911501929]])  
+                              
+            # 平移矩阵
+            self.T = np.array([[-45.0518881011289], [0.414329549832418], [-1.42608145944905]])
+    
+            # 焦距 unit:pixel resolution ratio 640*480 403.691 416x416 318.054100095
+            self.focal_length = 318.054100095
+
+            # 焦距 unit:pixel 349.124
+            self.focal_length_pix = 489.314  # 默认值，一般取立体校正后的重投影矩阵Q中的 Q[2,3]
+
+            # 基线距离
+            self.baseline = 45.0729106116333  # 单位：mm， 为平移向量的第一个参数（取绝对值）
+            
+            # pixel size unit: mm
+            self.pixel_size = 0.00375   
 
         # 计算校正变换
         self.R1, self.R2, self.P1, self.P2, self.Q, self.roi1, self.roi2 = cv2.stereoRectify(self.cam_matrix_left, self.distortion_l, self.cam_matrix_right,\

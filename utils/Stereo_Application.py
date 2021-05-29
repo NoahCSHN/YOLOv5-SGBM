@@ -33,15 +33,18 @@ class Stereo_Matching:
     -------
     """
     count=0
-    def __init__(self,cam_mode,BM=False):
+    def __init__(self,cam_mode,BM=False,filter_lambda=8000.0,filter_sigma=1.0,filter_uinra=40):
         t0 = time.time()
         self.BM = BM
         Stereo_Matching.count += 1
+        self.lamdba=filter_lambda
+        self.sigma=filter_sigma
+        self.unira=filter_uinra
         if not self.BM:
             self.window_size = 3
-            self.stereo = cv2.StereoSGBM_create(
+            self.left_matcher = cv2.StereoSGBM_create(
                 minDisparity=0,
-                numDisparities=48,  # max_disp has to be dividable by 16 f. E. HH 192, 256
+                numDisparities=192,  # max_disp has to be dividable by 16 f. E. HH 192, 256
                 blockSize=3,
                 P1=8 * 3 * self.window_size ** 2,
                 P2=32 * 3 * self.window_size ** 2,
@@ -55,16 +58,33 @@ class Stereo_Matching:
             logging.info('\nSGBM Inital Done. (%.2fs)',(time.time() - t0)) #cp3.5
         else:
             if cam_mode == calib_type.AR0135_640_480:
-                self.stereo = cv2.StereoBM_create(64, 9)
+                self.left_matcher = cv2.StereoBM_create(64, 9)
             else:
-                self.stereo = cv2.StereoBM_create(48, 9)
-            self.stereo.setUniquenessRatio(40)
+                # self.stereo = cv2.StereoBM_create(192, 49)
+                self.left_matcher = cv2.StereoBM_create(48, 9)
+            self.left_matcher.setUniquenessRatio(self.unira)
             # self.stereo.setTextureThreshold(5)
             logging.info('\nBM Inital Done. (%.2fs)',(time.time() - t0)) #cp3.5
-        self.filter = cv2.ximgproc.createDisparityWLSFilter(self.stereo)
-        self.filter.setLambda(8000.0)
-        self.filter.setSigmaColor(1.0)
-        
+        self.right_matcher = cv2.ximgproc.createRightMatcher(self.left_matcher)
+        self.filter = cv2.ximgproc.createDisparityWLSFilter(self.left_matcher)
+        self.filter.setLambda(self.lamdba)
+        self.filter.setSigmaColor(self.sigma)
+
+    def change_parameters(self,filter_unira=-1,filter_lambda=-1,filter_sigma=-1):
+        if Stereo_Matching.count == 0:
+            return print ('No Stereo Matching instance find.')    
+        if filter_unira >= 0:
+            self.stereo.setUniquenessRatio(filter_unira)
+            print('set UniquenessRatio: %d'%filter_unira)
+        if filter_lambda >= 0:
+            self.filter.setLambda(filter_lambda)
+            print('set filter Lambda: %f'%filter_lambda)
+        if filter_sigma >= 0:
+            self.filter.setSigmaColor(filter_sigma)
+            print('set filter sigma: %f'%filter_sigma)
+        return 0
+            
+
     def __del__(self):
         class_name=self.__class__.__name__
         print (class_name,"release")
@@ -74,21 +94,22 @@ class Stereo_Matching:
         t0=time.time()
         if not self.BM:
             if UMat:
-                disparity_left = self.stereo.compute(ImgL, ImgR, False).get().astype(np.float32) / 16.0
-                disparity_right = self.stereo.compute(ImgR, ImgL, False).get().astype(np.float32) / 16.0
+                disparity_left = self.left_matcher.compute(ImgL, ImgR, False).get().astype(np.float32) / 16.0
+                disparity_right = self.right_matcher.compute(ImgR, ImgL, False).get().astype(np.float32) / 16.0
             else:
-                disparity_left = self.stereo.compute(ImgL, ImgR, False).astype(np.float32) / 16.0
-                disparity_right = self.stereo.compute(ImgR, ImgL, False).astype(np.float32) / 16.0
+                disparity_left = self.left_matcher.compute(ImgL, ImgR, False).astype(np.float32) / 16.0
+                disparity_right = self.right_matcher.compute(ImgR, ImgL, False).astype(np.float32) / 16.0
         else:
             ImgL = cv2.cvtColor(ImgL, cv2.COLOR_BGR2GRAY)
             ImgR = cv2.cvtColor(ImgR, cv2.COLOR_BGR2GRAY)
             if UMat:
-                disparity_left = self.stereo.compute(ImgL,ImgR).get().astype(np.float32) / 16.0
-                disparity_right = self.stereo.compute(ImgR, ImgL).get().astype(np.float32) / 16.0
+                disparity_left = self.left_matcher.compute(ImgL,ImgR).get().astype(np.float32) / 16.0
+                disparity_right = self.right_matcher.compute(ImgR, ImgL).get().astype(np.float32) / 16.0
             else:
-                disparity_left = self.stereo.compute(ImgL,ImgR).astype(np.float32) / 16.0
-                disparity_right = self.stereo.compute(ImgR, ImgL).astype(np.float32) / 16.0
+                disparity_left = self.left_matcher.compute(ImgL,ImgR).astype(np.float32) / 16.0
+                disparity_right = self.right_matcher.compute(ImgR, ImgL).astype(np.float32) / 16.0
             logging.info('\nBM Done. (%.2fs)',(time.time() - t0)) #cp3.5
+        # disparity = disparity_left
         disparity = self.filter.filter(disparity_left, ImgL, disparity_map_right=disparity_right)
         Queue.put(disparity)
         return disparity

@@ -208,7 +208,9 @@ class socket_client():
             # data = np.array(imgencode)
             # stringData = data.tostring()
             stringData = np.ravel(image)
-            disparity_color = cv2.applyColorMap(cv2.convertScaleAbs(disparity, alpha=256/48), cv2.COLORMAP_JET)
+            minVal = np.amin(disparity)
+            maxVal = np.amax(disparity)
+            disparity_color = cv2.applyColorMap(cv2.convertScaleAbs(disparity, alpha=255.0/(maxVal-minVal),beta=0), cv2.COLORMAP_JET)
             ## 首先发送图片编码后的长度
             header='$Image,'+str(len(stringData))+','+str(len(np.ravel(disparity_color)))+','+str(imgsz[0])+','+str(imgsz[1])+','+str(coords[0][0])+','+str(coords[0][1])+','+str(frame)
             self.sock.sendall(header.encode('utf-8').ljust(64)) 
@@ -259,6 +261,7 @@ class calib_type(Enum):
     AR0135_416_416  = 3
     AR0135_640_640  = 4
     AR0135_640_480  = 5
+    MIDDLEBURY_416  = 6
 
 class camera_mode:
     def __init__(self,mode):
@@ -277,6 +280,9 @@ class camera_mode:
         elif mode == 4:
             self.mode=calib_type.AR0135_640_640
             self.size=(640,640)
-        else:
+        elif mode == 5:
             self.mode=calib_type.AR0135_640_480
             self.size=(640,480)
+        else:
+            self.mode=calib_type.MIDDLEBURY_416
+            self.size=(1280,960)

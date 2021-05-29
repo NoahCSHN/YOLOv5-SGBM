@@ -21,7 +21,7 @@ from utils.stereoconfig import stereoCamera
 from utils.general import confirm_dir,timethis,timeblock,socket_client,calib_type,camera_mode
 
 # %% initial environment
-def platform_init(bm_model=False, imgsz=640, device='pc', tcp_address=('192.168.3.181',9191)):
+def platform_init(bm_model=False, sm_lambda=8000.0, sm_sigma=2.0, sm_unira=40, imgsz=640, device='pc', tcp_address=('192.168.3.181',9191)):
     """
     @description  : initialize AI, SGBM, socket connect and stereo camera calibration parameter
     ---------
@@ -43,7 +43,7 @@ def platform_init(bm_model=False, imgsz=640, device='pc', tcp_address=('192.168.
     soc_client=socket_client(address=tcp_address)
     if Stereo_Matching.count != 0:
         del SM
-    SM = Stereo_Matching(cam_mode.mode,bm_model)
+    SM = Stereo_Matching(cam_mode.mode,bm_model,sm_lambda, sm_sigma, sm_unira)
     #init AI model
     MASKS = [[0,1,2],[3,4,5],[6,7,8]]
     ANCHORS = [[10, 13], [16, 30], [33, 23], [30, 61], [62, 45], [59, 119], [116, 90], [156, 198], [373, 326]]
@@ -115,7 +115,7 @@ def object_matching(ai_model,sm_model,camera_config,dataset,ratio,imgsz,fps,debu
             frame = str(dataset.count)
         else:
             frame = str(dataset.count)+'-'+str(dataset.frame)
-        img_raw, img_left, img_right, gain, padding=Image_Rectification(camera_config, img_left, img_right, imgsz=imgsz, debug=True, UMat=UMat, cam_mode=cam_mode)
+        img_raw, img_left, img_right, gain, padding=Image_Rectification(camera_config, img_left, img_right, imgsz=imgsz, debug=debug, UMat=UMat, cam_mode=cam_mode)
         # with timeblock('process image:'):
         sm_t = Thread(target=sm_model.run,args=(img_left,img_right,disarity_queue,UMat))
         ai_t = Thread(target=ai_model.predict,args=(img_raw, img_left, gain, padding, pred_queue))
@@ -196,8 +196,8 @@ def main():
     -------
     """
     print(args)
-    source, device, bm_model, imgsz, webcam, fps, ratio, debug, visual, UMat, tcp_port, tcp_ip, save_path= \
-        args.source, args.device, args.BM, args.img_size, args.webcam, args.fps, args.ratio, args.debug, args.visual,\
+    source, device, bm_model, sm_lambda, sm_sigma, sm_unira, imgsz, webcam, fps, ratio, debug, visual, UMat, tcp_port, tcp_ip, save_path= \
+        args.source, args.device, args.BM, args.sm_lambda, args.sm_sigma, args.sm_UniRa, args.img_size, args.webcam, args.fps, args.ratio, args.debug, args.visual,\
         args.UMat, args.tcp_port, args.tcp_ip, args.save_path    
     if args.verbose:
         logging.basicConfig(filename=os.path.join(save_path,'log.txt'),
@@ -213,7 +213,7 @@ def main():
         imgsz = (imgsz,imgsz)
 
     # platform init
-    AI, SM, soc_client,cam_mode= platform_init(bm_model, imgsz, device, (tcp_ip,tcp_port))
+    AI, SM, soc_client,cam_mode= platform_init(bm_model, sm_lambda, sm_sigma, sm_unira, imgsz, device, (tcp_ip,tcp_port))
 
     # dataset set up
     dataset, camera_config = LoadData(source, webcam, fps, imgsz, save_path, debug,cam_mode)
@@ -233,6 +233,9 @@ if __name__ == '__main__':
     parser.add_argument("--tcp_port", help="tcp port", type=int, default=9191)
     parser.add_argument("--tcp_ip", help="tcp ip", type=str, default='192.168.3.181')
     parser.add_argument("--out_range", help="The data size for model input", nargs='+', type=float, default=[0.5,1])
+    parser.add_argument("--sm_lambda", help="Stereo matching post filter parameter lambda", type=float, default=8000)
+    parser.add_argument("--sm_sigma", help="Stereo matching post filter parameter sigmacolor", type=float, default=1.0)
+    parser.add_argument("--sm_UniRa", help="Stereo matching post filter parameter UniquenessRatio", type=int, default=40)
     parser.add_argument("--score", help="inference score threshold", type=float, default=0)
     parser.add_argument("--fps", help="The webcam frequency", type=int, default=1)
     parser.add_argument("--cam_type", help="0: OV9714, 1: AR0135 1280X720; 2: AR0135 1280X960; 3:AR0135 416X416; 4:AR0135 640X640; 5:AR0135 640X480", type=int, default=5)

@@ -12,8 +12,7 @@ import numpy as np
 from utils.stereoconfig import stereoCamera
 import os
 from pathlib import Path
-from utils.rknn_detect_yolov5 import letterbox
-from utils.general import timethis,timeblock,calib_type
+from utils.general import timethis,timeblock,calib_type,letterbox
 # from pcl import pcl_visualization
  
 
@@ -145,6 +144,15 @@ def Image_Rectification(camera_config, img_left, img_right, imgsz=640, path=Fals
         imr = letterbox(imr, imgsz)[0]
         # 立体校正
         iml_rectified, imr_rectified = rectifyImage(iml, imr, config.map1x, config.map1y, config.map2x, config.map2y)
+    elif cam_mode == calib_type.MIDDLEBURY_416.value:
+        # iml_rectified, gain, padding = letterbox(iml, imgsz)
+        # imr_rectified = letterbox(imr, imgsz)[0]
+        # img_raw = iml_rectified
+        iml_rectified = iml
+        img_raw = iml_rectified
+        imr_rectified = imr
+        gain = 0
+        padding = 0
     else:
         # 立体校正
         iml_rectified, imr_rectified = rectifyImage(iml, imr, config.map1x, config.map1y, config.map2x, config.map2y)
