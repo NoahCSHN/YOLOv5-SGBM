@@ -184,7 +184,7 @@ class socket_client():
             sys.exit(1)         
     
     # @timethis
-    def send(self,image,disparity,coords,frame,imgsz=(416,416),quality=0.5,debug=False):
+    def send(self,image,disparity,padding,coords,frame,imgsz=(416,416),quality=0.5,debug=False):
         """
         @description  : send a packet to tcp server
         ---------
@@ -203,16 +203,18 @@ class socket_client():
         if debug:
             encode_param = [int(cv2.IMWRITE_JPEG_QUALITY), int(quality*100)]
             ## 首先对图片进行编码，因为socket不支持直接发送图片
-            # image,_,_ = letterbox(image,imgsz)
-            # _, imgencode = cv2.imencode('.bmp', cv2.UMat(image),encode_param)#
-            # data = np.array(imgencode)
-            # stringData = data.tostring()
             stringData = np.ravel(image)
+            stringData = stringData[padding[0]*imgsz[0]*3:(padding[0]+312)*imgsz[0]*3]       
+            disparity = np.ravel(disparity)
+            disparity = disparity[padding[0]*imgsz[0]:(padding[0]+312)*imgsz[0]]
             minVal = np.amin(disparity)
             maxVal = np.amax(disparity)
+            disparity = np.reshape(disparity,(312,416))
             disparity_color = cv2.applyColorMap(cv2.convertScaleAbs(disparity, alpha=255.0/(maxVal-minVal),beta=0), cv2.COLORMAP_JET)
+            colorsz = disparity_color.shape
+            im0sz = stringData.shape
             ## 首先发送图片编码后的长度
-            header='$Image,'+str(len(stringData))+','+str(len(np.ravel(disparity_color)))+','+str(imgsz[0])+','+str(imgsz[1])+','+str(coords[0][0])+','+str(coords[0][1])+','+str(frame)
+            header='$Image,'+str(len(stringData))+','+str(len(np.ravel(disparity_color)))+','+str(312)+','+str(416)+','+str(colorsz[0])+','+str(colorsz[1])+','+str(coords[0][0])+','+str(coords[0][1])+','+str(frame)
             self.sock.sendall(header.encode('utf-8').ljust(64)) 
             while answer != 'Ready for Image':
                 answer = self.sock.recv(32).decode('utf-8')

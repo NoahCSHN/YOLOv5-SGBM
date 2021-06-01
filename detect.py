@@ -160,7 +160,7 @@ def object_matching(ai_model,sm_model,camera_config,dataset,ratio,imgsz,fps,debu
                 plot_one_box(xyxy, img_left, label=label, line_thickness=1)             
                 index += 1
         # %%% send result
-        soc_client.send(img_left, disparity, distance, frame, imgsz, 0.5, visual)
+        soc_client.send(img_left, disparity, padding, distance, frame, imgsz, 0.5, visual)
         # %%% TODO: 保存结果
         # with timeblock('write file'):
         if args.save_result:

@@ -171,7 +171,8 @@ def netdata_pipe(server_soc, videoWriter, pub):
                     image_length=int(stringData.split(',')[1])
                     dis_img_length = int(stringData.split(',')[2])
                     img_resolution = stringData.split(',')[3:5]
-                    timestamp=stringData.split(',')[5:-1]
+                    dis_resolution = stringData.split(',')[5:7]
+                    timestamp=stringData.split(',')[7:-1]
                     frame=stringData.split(',')[-1]
                     coords = []
                     if opt.image:
@@ -182,7 +183,7 @@ def netdata_pipe(server_soc, videoWriter, pub):
                         conn.sendall('Ready for Disparity Image'.encode('utf-8'))
                         stringData = recvall(conn,(dis_img_length))
                         dis_img = numpy.frombuffer(stringData,numpy.uint8)  # 将获取到的字符流数据转换成1维数组 data = numpy.fromstring() numpy.frombuffer
-                        dis_img = numpy.reshape(dis_img,(int(img_resolution[0]),int(img_resolution[1]),3))
+                        dis_img = numpy.reshape(dis_img,(int(dis_resolution[0]),int(dis_resolution[1]),3))
                         pub.pub_img(img)
                         pub.pub_cloud_img(dis_img)
                     conn.sendall('Ready for Coordinates'.encode('utf-8'))

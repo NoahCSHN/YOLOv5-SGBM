@@ -52,7 +52,10 @@ class loadfiles:
         if '*' in p:
             files = sorted(glob.glob(p, recursive=True))  # glob
         elif os.path.isdir(p):
-            files = sorted(glob.glob(os.path.join(p, '*.*')), key=lambda x: int(os.path.basename(x).split('.')[0]))  # dir
+            try:
+                files = sorted(glob.glob(os.path.join(p, '*.*')), key=lambda x: int(os.path.basename(x).split('.')[0]))  # dir
+            except:
+                files = sorted(glob.glob(os.path.join(p, '*.*')))  # dir
         elif os.path.isfile(p):
             files = [p]  # files
         else:
@@ -69,7 +72,8 @@ class loadfiles:
         self.video_flag = [False] * ni + [True] * nv
         self.mode = 'image'
         self.writer = None          #debug function
-        self.new_video('test')  # new video
+        if any(videos):
+            self.new_video(videos[0])  # new video
         assert self.nf > 0, 'No images or videos found in %s. '%p \
                             # 'Supported formats are:\nimages: {img_formats}\nvideos: {vid_formats}' #cp3.5
 
@@ -134,10 +138,17 @@ class loadfiles:
         return self.nf  # number of files
 
 if __name__ == '__main__':
-    dataset = loadfiles(path='/home/bynav/RK3399/AI_SGBM/runs/detect/test/images')
+    dataset = loadfiles(path='/home/bynav/RK3399/AI_SGBM/runs/detect/test/raw_video')
+    save_path = '/home/bynav/RK3399/AI_SGBM/runs/detect/test/raw_image'
     for _,img,_ in dataset:
-        dataset.writer.write(img)
-        cv2.imshow('Test',img)
-        if cv2.waitKey(1) == ord('q'):
-            break
-    
+        if dataset.mode == 'image':
+            dataset.writer.write(img)
+            cv2.imshow('Test',img)
+            if cv2.waitKey(1) == ord('q'):
+                break
+        else:
+            save_name=os.path.join(save_path,str(dataset.frame)+'.png')
+            cv2.imwrite(save_name,img)
+            cv2.imshow('Test',img)
+            if cv2.waitKey(1) == ord('q'):
+                break
