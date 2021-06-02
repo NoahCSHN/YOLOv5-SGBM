@@ -44,7 +44,7 @@ class Stereo_Matching:
             self.window_size = 3
             self.left_matcher = cv2.StereoSGBM_create(
                 minDisparity=0,
-                numDisparities=192,  # max_disp has to be dividable by 16 f. E. HH 192, 256
+                numDisparities=48,  # max_disp has to be dividable by 16 f. E. HH 192, 256
                 blockSize=3,
                 P1=8 * 3 * self.window_size ** 2,
                 P2=32 * 3 * self.window_size ** 2,
@@ -55,7 +55,7 @@ class Stereo_Matching:
                 preFilterCap=63,
                 mode=cv2.STEREO_SGBM_MODE_SGBM_3WAY
                 )
-            logging.info('\nSGBM Inital Done. (%.2fs)',(time.time() - t0)) #cp3.5
+            print('\nSGBM Inital Done. (%.2fs)'%(time.time() - t0)) #cp3.5
         else:
             if cam_mode == calib_type.AR0135_640_480:
                 self.left_matcher = cv2.StereoBM_create(64, 9)
@@ -64,7 +64,7 @@ class Stereo_Matching:
                 self.left_matcher = cv2.StereoBM_create(48, 9)
             self.left_matcher.setUniquenessRatio(self.unira)
             # self.stereo.setTextureThreshold(5)
-            logging.info('\nBM Inital Done. (%.2fs)',(time.time() - t0)) #cp3.5
+            print('\nBM Inital Done. (%.2fs)'%(time.time() - t0)) #cp3.5
         self.right_matcher = cv2.ximgproc.createRightMatcher(self.left_matcher)
         self.filter = cv2.ximgproc.createDisparityWLSFilter(self.left_matcher)
         self.filter.setLambda(self.lamdba)
