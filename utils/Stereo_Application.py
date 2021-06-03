@@ -33,7 +33,7 @@ class Stereo_Matching:
     -------
     """
     count=0
-    def __init__(self,cam_mode,BM=False,filter_lambda=8000.0,filter_sigma=1.0,filter_uinra=40):
+    def __init__(self,cam_mode,BM=False,filter_lambda=8000.0,filter_sigma=1.0,filter_uinra=40,numdisparity=48):
         t0 = time.time()
         self.BM = BM
         Stereo_Matching.count += 1
@@ -44,7 +44,7 @@ class Stereo_Matching:
             self.window_size = 3
             self.left_matcher = cv2.StereoSGBM_create(
                 minDisparity=0,
-                numDisparities=48,  # max_disp has to be dividable by 16 f. E. HH 192, 256
+                numDisparities=numdisparity,  # max_disp has to be dividable by 16 f. E. HH 192, 256
                 blockSize=3,
                 P1=8 * 3 * self.window_size ** 2,
                 P2=32 * 3 * self.window_size ** 2,
@@ -57,11 +57,7 @@ class Stereo_Matching:
                 )
             print('\nSGBM Inital Done. (%.2fs)'%(time.time() - t0)) #cp3.5
         else:
-            if cam_mode == calib_type.AR0135_640_480:
-                self.left_matcher = cv2.StereoBM_create(64, 9)
-            else:
-                # self.stereo = cv2.StereoBM_create(192, 49)
-                self.left_matcher = cv2.StereoBM_create(48, 9)
+            self.left_matcher = cv2.StereoBM_create(numdisparity, 9)
             self.left_matcher.setUniquenessRatio(self.unira)
             # self.stereo.setTextureThreshold(5)
             print('\nBM Inital Done. (%.2fs)'%(time.time() - t0)) #cp3.5

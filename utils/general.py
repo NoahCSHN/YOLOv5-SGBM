@@ -210,7 +210,7 @@ class socket_client():
             minVal = np.amin(disparity)
             maxVal = np.amax(disparity)
             disparity = np.reshape(disparity,(312,416))
-            disparity_color = cv2.applyColorMap(cv2.convertScaleAbs(disparity, alpha=255.0/(maxVal-minVal),beta=0), cv2.COLORMAP_JET)
+            disparity_color = cv2.applyColorMap(cv2.convertScaleAbs(disparity, alpha=255.0/(maxVal-minVal),beta=-minVal*255.0/(maxVal-minVal)), cv2.COLORMAP_JET)
             colorsz = disparity_color.shape
             im0sz = stringData.shape
             ## 首先发送图片编码后的长度

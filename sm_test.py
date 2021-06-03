@@ -24,7 +24,7 @@ def sm_run():
     cam_mode = camera_mode(args.cam_type)
     if Stereo_Matching.count != 0:
         del sm_model
-    sm_model = Stereo_Matching(cam_mode.mode, args.BM, args.sm_lambda, args.sm_sigma, args.sm_UniRa)
+    sm_model = Stereo_Matching(cam_mode.mode, args.BM, args.sm_lambda, args.sm_sigma, args.sm_UniRa, args.sm_numdi)
 
     #data source configuration
     if args.webcam:
@@ -63,13 +63,14 @@ if __name__ == '__main__':
     # parameter input with model start up
     parser = argparse.ArgumentParser()
     parser.add_argument("--source", help="The data source for model input", type=str, default='0')
-    parser.add_argument("--img_size", help="The data size for model input", nargs='+', type=int, default=[416,312])
+    parser.add_argument("--img_size", help="The data size for model input", nargs='+', type=int, default=[416,416])
     parser.add_argument("--tcp_port", help="tcp port", type=int, default=9191)
     parser.add_argument("--tcp_ip", help="tcp ip", type=str, default='192.168.3.181')
     parser.add_argument("--out_range", help="The data size for model input", nargs='+', type=float, default=[0.5,1])
     parser.add_argument("--sm_lambda", help="Stereo matching post filter parameter lambda", type=float, default=8000)
     parser.add_argument("--sm_sigma", help="Stereo matching post filter parameter sigmacolor", type=float, default=1.0)
     parser.add_argument("--sm_UniRa", help="Stereo matching post filter parameter UniquenessRatio", type=int, default=40)
+    parser.add_argument("--sm_numdi", help="Stereo matching max number disparity", type=int, default=48)
     parser.add_argument("--score", help="inference score threshold", type=float, default=0)
     parser.add_argument("--fps", help="The webcam frequency", type=int, default=1)
     parser.add_argument("--cam_type", help="0: OV9714, 1: AR0135 1280X720; 2: AR0135 1280X960; 3:AR0135 416X416; 4:AR0135 640X640; 5:AR0135 640X480; 6:MIDDLEBURY 416X360", type=int, default=5)

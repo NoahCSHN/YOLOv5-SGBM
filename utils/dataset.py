@@ -133,7 +133,7 @@ class loadfiles:
 
             self.file_name = path+'_'+self.frame
             self.frame += 1
-            print('video %d/%d (%d/%d) %s: '%(self.count + 1,self.nf,self.frame,self.nframes,path), end='') #cp3.5
+            # print('video %d/%d (%d/%d) %s: '%(self.count + 1,self.nf,self.frame,self.nframes,path), end='') #cp3.5
 
         else:
             # Read image
@@ -143,7 +143,7 @@ class loadfiles:
             self.file_name = os.path.split(path)[-1]
             assert img0 is not None, 'Image Not Found ' + path
             # print('========================new image========================')
-            print('image %d/%d %s: '%(self.count, self.nf, path), end='\n') #cp3.5
+            # print('image %d/%d %s: '%(self.count, self.nf, path), end='\n') #cp3.5
 
         # Padded resize
         TimeStamp = str(time.time()).split('.')
