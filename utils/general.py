@@ -188,12 +188,12 @@ class socket_client():
         """
         @description  : send a packet to tcp server
         ---------
-        @param  :
-            image: the cv2 image mat (imgsz[0],imgsz[1])
-            coords: the coords of the opposite angle of the object rectangle,(n,(x1,y1,z1,x2,y2,z2))
-            frame: frame number of the pipe stream
-            imgsz: the image resolution(height,width), reserved
-            debug: type bool, if true, add a image in imgsz shape to tcp transmission packet        
+        @param  : image: the cv2 image mat (imgsz[0],imgsz[1])
+        @param  : coords: the coords of the opposite angle of the object rectangle,(n,(x1,y1,z1,x2,y2,z2))
+        @param  : frame: frame number of the pipe stream
+        @param  : imgsz: the image resolution(height,width), reserved
+        @param  : quality: type float ,in the range [0,1], reserved
+        @param  : debug: type bool, if true, add a image in imgsz shape to tcp transmission packet
         -------
         @Returns  : None
         -------
@@ -212,7 +212,6 @@ class socket_client():
             disparity = np.reshape(disparity,(312,416))
             disparity_color = cv2.applyColorMap(cv2.convertScaleAbs(disparity, alpha=255.0/(maxVal-minVal),beta=-minVal*255.0/(maxVal-minVal)), cv2.COLORMAP_JET)
             colorsz = disparity_color.shape
-            im0sz = stringData.shape
             ## 首先发送图片编码后的长度
             header='$Image,'+str(len(stringData))+','+str(len(np.ravel(disparity_color)))+','+str(312)+','+str(416)+','+str(colorsz[0])+','+str(colorsz[1])+','+str(coords[0][0])+','+str(coords[0][1])+','+str(frame)
             self.sock.sendall(header.encode('utf-8').ljust(64)) 
@@ -257,6 +256,12 @@ class socket_client():
         self.close()
 
 class calib_type(Enum):
+    """
+    @description  : camera type for image rectification
+    ---------
+    @function  : sequence the camera type by number
+    -------
+    """
     OV9714_1280_720 = 0
     AR0135_1280_720 = 1
     AR0135_1280_960 = 2
@@ -266,6 +271,12 @@ class calib_type(Enum):
     MIDDLEBURY_416  = 6
 
 class camera_mode:
+    """
+    @description  : camera mode for image rectification
+    ---------
+    @function  : give each calib type a image size for rectification
+    -------
+    """
     def __init__(self,mode):
         if mode == 0:
             self.mode=calib_type.OV9714_1280_720
