@@ -110,6 +110,7 @@ def Image_Rectification(camera_config, img_left, img_right, imgsz=640, path=Fals
         path: type bool, if true, the img_left and img_right type are string,as image file path 
         debug: type bool, reserved
         UMat: type bool, if true, use GPU accelarating SGBM and image rectification process
+        cam_mode: type int, the camera configuration type
     -------
     @Returns  :
         iml_rectified: type array, left image for SGBM
@@ -143,13 +144,13 @@ def Image_Rectification(camera_config, img_left, img_right, imgsz=640, path=Fals
         iml, gain, padding = letterbox(iml, imgsz)
         imr = letterbox(imr, imgsz)[0]
         # 立体校正
-        iml_rectified, imr_rectified = rectifyImage(iml, imr, config.map1x, config.map1y, config.map2x, config.map2y)
+        img_ai, imr_rectified = rectifyImage(iml, imr, config.map1x, config.map1y, config.map2x, config.map2y)   
     elif cam_mode == calib_type.MIDDLEBURY_416.value:
         # iml_rectified, gain, padding = letterbox(iml, imgsz)
         # imr_rectified = letterbox(imr, imgsz)[0]
         # img_raw = iml_rectified
-        iml_rectified = iml
-        img_raw = iml_rectified
+        img_raw = iml
+        img_ai = iml
         imr_rectified = imr
         gain = 0
         padding = 0
@@ -161,20 +162,25 @@ def Image_Rectification(camera_config, img_left, img_right, imgsz=640, path=Fals
         else:
             img_raw = iml_rectified
         # 图像缩放
-        iml_rectified, gain, padding = letterbox(iml_rectified, imgsz)
+        img_ai, gain, padding = letterbox(iml_rectified, imgsz)
         imr_rectified = letterbox(imr_rectified, imgsz)[0]
-    iml_rectified = np.ascontiguousarray(iml_rectified)
-    imr_rectified = np.ascontiguousarray(imr_rectified)
+         
+        gain = 0
+        padding = 0
     # save for debug
     # cv2.imwrite('./runs/detect/test/Left1_rectified.bmp', iml_rectified)
     # cv2.imwrite('./runs/detect/test/Right1_rectified.bmp', imr_rectified)
  
     if debug:
     # 绘制等间距平行线，检查立体校正的效果
-        line = draw_line(iml_rectified, imr_rectified)
+        line = draw_line(img_ai, imr_rectified)
         cv2.imwrite('./runs/detect/test/line.png', line)
+    iml_rectified = cv2.cvtColor(img_ai, cv2.COLOR_BGR2GRAY)
+    imr_rectified = cv2.cvtColor(imr_rectified, cv2.COLOR_BGR2GRAY)        
+    iml_rectified = np.ascontiguousarray(iml_rectified)
+    imr_rectified = np.ascontiguousarray(imr_rectified)
  
-    return img_raw, iml_rectified, imr_rectified, gain, padding
+    return img_raw, img_ai, iml_rectified, imr_rectified, gain, padding
 
 if __name__ == '__main__':
     config = stereoCamera()
