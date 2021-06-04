@@ -115,10 +115,10 @@ def object_matching(ai_model,sm_model,camera_config,dataset,ratio,imgsz,fps,debu
             frame = str(dataset.count)
         else:
             frame = str(dataset.count)+'-'+str(dataset.frame)
-        img_raw, img_left, img_right, gain, padding=Image_Rectification(camera_config, img_left, img_right, imgsz=imgsz, debug=debug, UMat=UMat, cam_mode=cam_mode)
+        img_raw, img_ai, img_left, img_right, gain, padding=Image_Rectification(camera_config, img_left, img_right, imgsz=imgsz, debug=debug, UMat=UMat, cam_mode=cam_mode)
         # with timeblock('process image:'):
         sm_t = Thread(target=sm_model.run,args=(img_left,img_right,disarity_queue,UMat))
-        ai_t = Thread(target=ai_model.predict,args=(img_raw, img_left, gain, padding, pred_queue))
+        ai_t = Thread(target=ai_model.predict,args=(img_raw, img_ai, gain, padding, pred_queue))
         sm_t.start()
         ai_t.start()
         ai_t.join()
@@ -150,29 +150,23 @@ def object_matching(ai_model,sm_model,camera_config,dataset,ratio,imgsz,fps,debu
 
             # %%%% TODO: 将最终深度结果画到图像里
                 xyxy = [raw_box[0],raw_box[1],raw_box[2],raw_box[3]]
-                # xyxy = [int((raw_box[0]+raw_box[2])/2)-2*int((raw_box[2]-raw_box[0])*ratio),\
-                #         int((raw_box[1]+raw_box[3])/2)-2*int((raw_box[3]-raw_box[1])*ratio),\
-                #         int((raw_box[0]+raw_box[2])/2)+2*int((raw_box[2]-raw_box[0])*ratio),\
-                #         int((raw_box[1]+raw_box[3])/2)+2*int((raw_box[3]-raw_box[1])*ratio)]                
-                # label = str(label)+':'+str(round(score,2))+'-'+str(round(temp_dis,2)) #cp3.5
-                # plot_one_box(xyxy, img_left, label=label, line_thickness=2)
                 label = str(round(temp_dis,2)) #cp3.5
-                plot_one_box(xyxy, img_left, label=label, line_thickness=1)             
+                plot_one_box(xyxy, img_ai, label=label, line_thickness=1)             
                 index += 1
         # %%% send result
-        soc_client.send(img_left, disparity, padding, distance, frame, imgsz, 0.5, visual)
+        soc_client.send(img_ai, disparity, padding, distance, frame, imgsz, 0.5, visual)
         # %%% TODO: 保存结果
         # with timeblock('write file'):
         if args.save_result:
             if dataset.mode == 'image':
                 file_path = confirm_dir(args.save_path,'images')
                 save_path = os.path.join(file_path,str(dataset.count)+'.bmp')
-                cv2.imwrite(save_path, img_left)
+                cv2.imwrite(save_path, img_ai)
                 # time.sleep(1)
             elif dataset.mode == 'video' or dataset.mode == 'webcam':
                 file_path = os.path.join(args.save_path,dataset.mode)
                 dataset.get_vid_dir(file_path)
-                dataset.writer.write(img_left)
+                dataset.writer.write(img_ai)
             txt_path = confirm_dir(args.save_path,'txt')
             with open(os.path.join(txt_path,'result'),'a+') as f:
                 f.write('-----------------'+real_time+str(frame)+'-----------------\n')
