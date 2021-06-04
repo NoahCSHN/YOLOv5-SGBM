@@ -33,13 +33,26 @@ class Stereo_Matching:
     -------
     """
     count=0
-    def __init__(self,cam_mode,BM=False,filter_lambda=8000.0,filter_sigma=1.0,filter_uinra=40,numdisparity=48):
+    def __init__(self,cam_mode,BM=False,filter_lambda=8000.0,filter_sigma=1.0,filter_unira=40,numdisparity=48):
+        """
+        @description  : initialize stereoBM or stereoSGBM alogrithm
+        ---------
+        @param  : cam_mode, reserved
+        @param  : BM, bool, if false, use stereoSGBM, otherwise, use stereoBM
+        @param  : filter_lambda, float, the lambda parameter of post WLS filter
+        @param  : filter_sigma, float, the sigmacolor parameter of post WLS filter
+        @param  : filter_unira, int, the UniquenessRatio parameter of the stereo alogrithm filter
+        @param  : numdisparity, int, must be dividable by 16, the max disparity the stereo matching will attempt
+        -------
+        @Returns  :
+        -------
+        """
         t0 = time.time()
         self.BM = BM
         Stereo_Matching.count += 1
         self.lamdba=filter_lambda
         self.sigma=filter_sigma
-        self.unira=filter_uinra
+        self.unira=filter_unira
         if not self.BM:
             self.window_size = 3
             self.left_matcher = cv2.StereoSGBM_create(
@@ -55,20 +68,31 @@ class Stereo_Matching:
                 preFilterCap=63,
                 mode=cv2.STEREO_SGBM_MODE_SGBM_3WAY
                 )
-            print('\nSGBM Inital Done. (%.2fs)'%(time.time() - t0)) #cp3.5
+            print('\nSGBM Initial Done. (%.2fs)'%(time.time() - t0)) #cp3.5
         else:
             self.left_matcher = cv2.StereoBM_create(numdisparity, 9)
             self.left_matcher.setUniquenessRatio(self.unira)
             # self.stereo.setTextureThreshold(5)
-            print('\nBM Inital Done. (%.2fs)'%(time.time() - t0)) #cp3.5
+            print('\nBM Initial Done. (%.2fs)'%(time.time() - t0)) #cp3.5
         self.right_matcher = cv2.ximgproc.createRightMatcher(self.left_matcher)
         self.filter = cv2.ximgproc.createDisparityWLSFilter(self.left_matcher)
         self.filter.setLambda(self.lamdba)
         self.filter.setSigmaColor(self.sigma)
 
     def change_parameters(self,filter_unira=-1,filter_lambda=-1,filter_sigma=-1):
+        """
+        @description  : reserved, TODO: dynamic adjust filter parameters
+        ---------
+        @param  : filter_lambda, float, the lambda parameter of post WLS filter
+        @param  : filter_sigma, float, the sigmacolor parameter of post WLS filter
+        @param  : filter_unira, int, the UniquenessRatio parameter of the stereo alogrithm filter
+        -------
+        @Returns  : -1 ,error, 0, normal
+        -------
+        """        
         if Stereo_Matching.count == 0:
-            return print ('No Stereo Matching instance find.')    
+            print ('No Stereo Matching instance find.')
+            return -1
         if filter_unira >= 0:
             self.stereo.setUniquenessRatio(filter_unira)
             print('set UniquenessRatio: %d'%filter_unira)
@@ -87,6 +111,17 @@ class Stereo_Matching:
     
     # @timethis
     def run(self,ImgL,ImgR,Queue,UMat=False):
+        """
+        @description  :compute the disparity of ImgL and ImgR and put the disparity map to Queue
+        ---------
+        @param  : ImgL, Gray image taked by the left camera
+        @param  : ImgR, Gray image taked by the right camera
+        @param  : Queue, the data container of python API queue, used for data interaction between thread
+        @param  : UMat, bool, if true, the data type is UMat(GPU), otherwise, the data type is UMat(CPU)
+        -------
+        @Returns  : disparity, a Mat with the same shape as ImgL
+        -------
+        """
         t0=time.time()
         if not self.BM:
             if UMat:
@@ -96,8 +131,6 @@ class Stereo_Matching:
                 disparity_left = self.left_matcher.compute(ImgL, ImgR, False).astype(np.float32) / 16.0
                 disparity_right = self.right_matcher.compute(ImgR, ImgL, False).astype(np.float32) / 16.0
         else:
-            ImgL = cv2.cvtColor(ImgL, cv2.COLOR_BGR2GRAY)
-            ImgR = cv2.cvtColor(ImgR, cv2.COLOR_BGR2GRAY)
             if UMat:
                 disparity_left = self.left_matcher.compute(ImgL,ImgR).get().astype(np.float32) / 16.0
                 disparity_right = self.right_matcher.compute(ImgR, ImgL).get().astype(np.float32) / 16.0
@@ -109,48 +142,6 @@ class Stereo_Matching:
         disparity = self.filter.filter(disparity_left, ImgL, disparity_map_right=disparity_right)
         Queue.put(disparity)
         return disparity
-        
-        
-class SGBM:
-    """
-    @description  : 'SGBM Algorithm Class'
-    ---------
-    @function  :
-    -------
-    """  
-    count=0
-    def __init__(self,cam_mode):
-        t0 = time.time()
-        SGBM.count += 1
-        self.window_size = 3
-        self.stereo = cv2.StereoSGBM_create(
-            minDisparity=0,
-            numDisparities=48,  # max_disp has to be dividable by 16 f. E. HH 192, 256
-            blockSize=3,
-            P1=8 * 3 * self.window_size ** 2,
-            P2=32 * 3 * self.window_size ** 2,
-            disp12MaxDiff=1,
-            uniquenessRatio=15,
-            speckleWindowSize=0,
-            speckleRange=2,
-            preFilterCap=63,
-            mode=cv2.STEREO_SGBM_MODE_SGBM_3WAY
-            )
-        logging.info('\nSGBM Inital Done. (%.2fs)',(time.time() - t0)) #cp3.5
-    
-    def __del__(self):
-        class_name=self.__class__.__name__
-        print (class_name,"release")
-    
-    # @timethis
-    def run(self,ImgL,ImgR,Queue,UMat=False):
-        t0 = time.time()
-        if UMat:
-            self.disparity = self.stereo.compute(ImgL, ImgR, False).get().astype(np.float32) / 16.0
-        else:
-            self.disparity = self.stereo.compute(ImgL, ImgR, False).astype(np.float32) / 16.0
-        Queue.put(self.disparity)
-        return self.disparity
 
 def disparity_centre(raw_box,ratio,disparity,focal,baseline,pixel_size):
     """
@@ -178,7 +169,9 @@ def disparity_centre(raw_box,ratio,disparity,focal,baseline,pixel_size):
     if (dx == 0) and (dy == 0):
         # %% caculate every pixel in box and get the Median
         for i in range(raw_box[2]-raw_box[0]):
+            # print('')
             for j in range(raw_box[3]-raw_box[1]):
+                # print(disparity[(raw_box[0]+i),(raw_box[1]+j)],end=',')
                 if disparity[(raw_box[0]+i),(raw_box[1]+j)] > 0:
                     depth.append(disparity[(raw_box[0]+i),(raw_box[1]+j)])
     else:
