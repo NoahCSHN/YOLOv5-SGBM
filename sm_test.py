@@ -42,18 +42,26 @@ def sm_run():
                 frame = str(dataset.count)
             else:
                 frame = str(dataset.count)+'-'+str(dataset.frame)                    
-            img_raw, img_left, img_right, gain, padding=Image_Rectification(camera_config, img_left, img_right, imgsz=args.img_size, debug=True, UMat=args.UMat, cam_mode=cam_mode.mode.value)
+            img_raw, img_ai, img_left, img_right, gain, padding=Image_Rectification(camera_config, img_left, img_right, imgsz=args.img_size, debug=True, UMat=args.UMat, cam_mode=cam_mode.mode.value)
             sm_model.run(img_left,img_right,disparity_queue,args.UMat)
             disparity = disparity_queue.get()
+            if cam_mode.mode == calib_type.AR0135_416_416 or cam_mode.mode == calib_type.AR0135_640_640:
+                img_left = np.ravel(img_left)
+                img_left = img_left[padding[0]*args.img_size[0]*3:(padding[0]+312)*args.img_size[0]*3]     
+                img_left = np.reshape(img_left,(312,416,3))          
+                disparity = np.ravel(disparity)
+                disparity = disparity[padding[0]*args.img_size[0]:(padding[0]+312)*args.img_size[0]]
+                disparity = np.reshape(disparity,(312,416))    
             minVal = np.amin(disparity)
-            maxVal = np.amax(disparity)
-            disparity_color = cv2.applyColorMap(cv2.convertScaleAbs(disparity, alpha=255.0/(maxVal-minVal),beta=0), cv2.COLORMAP_JET)
-            # disparity_color = cv2.applyColorMap(cv2.convertTo(disparity, alpha=2), cv2.COLORMAP_JET)
-            # path_name = confirm_dir(args.save_path,str(args.sm_lambda)+'_'+str(args.sm_sigma)+'_'+str(args.sm_UniRa))
-            # file_name = os.path.join(path_name,dataset.file_name)
-            merge = cv2.hconcat([disparity_color,img_left])
+            maxVal = np.amax(disparity)        
+            disparity_color = cv2.applyColorMap(cv2.convertScaleAbs(disparity, alpha=255.0/(maxVal-minVal),beta=-minVal*255.0/(maxVal-minVal)), cv2.COLORMAP_JET)
+            # disparity_color = cv2.applyColorMap(cv2.convertScaleAbs(disparity, alpha=255.0/(maxVal-minVal)), cv2.COLORMAP_JET)
+            # disparity_color = cv2.applyColorMap(cv2.normalize(disparity), cv2.COLORMAP_JET)
+            path_name = confirm_dir(args.save_path,'BM_'+str(args.BM)+'_'+str(args.sm_lambda)+'_'+str(args.sm_sigma)+'_'+str(args.sm_UniRa)+'_'+str(args.sm_numdi))
+            file_name = os.path.join(path_name,dataset.file_name)
+            merge = cv2.hconcat([disparity_color,img_ai])
             cv2.imshow('Disparity',merge)
-            # cv2.imwrite('disparity',disparity_color)
+            cv2.imwrite(file_name,merge)
             if cv2.waitKey(1) == ord('q'):
                 break
 
@@ -68,7 +76,7 @@ if __name__ == '__main__':
     parser.add_argument("--tcp_ip", help="tcp ip", type=str, default='192.168.3.181')
     parser.add_argument("--out_range", help="The data size for model input", nargs='+', type=float, default=[0.5,1])
     parser.add_argument("--sm_lambda", help="Stereo matching post filter parameter lambda", type=float, default=8000)
-    parser.add_argument("--sm_sigma", help="Stereo matching post filter parameter sigmacolor", type=float, default=1.0)
+    parser.add_argument("--sm_sigma", help="Stereo matching post filter parameter sigmacolor", type=float, default=2.0)
     parser.add_argument("--sm_UniRa", help="Stereo matching post filter parameter UniquenessRatio", type=int, default=40)
     parser.add_argument("--sm_numdi", help="Stereo matching max number disparity", type=int, default=48)
     parser.add_argument("--score", help="inference score threshold", type=float, default=0)
