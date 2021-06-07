@@ -21,19 +21,19 @@ def merge_images(root='',folder=''):
             filel = os.path.join(dir,'im0.png')
             iml = cv2.imread(filel)
         else:
-            print('Image Left not found')
+            print(f'{dir} Image Left not found')
             return -1
         if 'im1.png' in files:
             filer = os.path.join(dir,'im1.png')
             imr = cv2.imread(filer)
         else:
-            print('Image Right not found')
+            print(f'{dir} Image Right not found')
             return -1
         # width = 2*imgl.shape[1]
         # height = imgl.shape[0]
         im_merge = cv2.hconcat([iml,imr])
         save_path = os.path.join(root,'merge')
-        print(save_path)
+        # print(save_path)
         cv2.imshow('merge image',im_merge)
         cv2.imwrite(os.path.join(save_path,folder+'.png'),im_merge)
         if cv2.waitKey(1) == ord('q'):
