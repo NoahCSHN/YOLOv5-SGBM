@@ -73,7 +73,7 @@ class AutoScale:
     @property
     def new_img(self):
         if self.__new_img is None:
-            self.__new_img = cv2.resize(self._src_img, self._new_size)
+            self.__new_img = cv2.resize(self._src_img, self._new_size,interpolation=cv2.INTER_AREA)
         return self.__new_img
 
 # @timethis
