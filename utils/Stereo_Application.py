@@ -1,5 +1,5 @@
 import numpy as np
-import argparse,logging,time,math
+import argparse,logging,time,math,os
 import cv2
 from matplotlib import pyplot as plt
 from utils.general import calib_type, timethis
@@ -33,51 +33,93 @@ class Stereo_Matching:
     -------
     """
     count=0
-    def __init__(self,cam_mode,BM=False,filter_lambda=8000.0,filter_sigma=1.0,filter_unira=40,numdisparity=48):
+    def __init__(self,cam_mode,BM=False,filter=True, 
+                 filter_lambda=8000.0,filter_sigma=1.5,
+                 filter_unira=5,
+                 numdisparity=64, mindis=0, block=9, TextureThreshold=5,
+                 prefiltercap=63, prefiltersize=9, prefiltertype=1,
+                 SpeckleWindowSize=50, speckleRange=2,
+                 sf_path=''):
         """
         @description  : initialize stereoBM or stereoSGBM alogrithm
         ---------
-        @param  : cam_mode, reserved
-        @param  : BM, bool, if false, use stereoSGBM, otherwise, use stereoBM
-        @param  : filter_lambda, float, the lambda parameter of post WLS filter
-        @param  : filter_sigma, float, the sigmacolor parameter of post WLS filter
-        @param  : filter_unira, int, the UniquenessRatio parameter of the stereo alogrithm filter
-        @param  : numdisparity, int, must be dividable by 16, the max disparity the stereo matching will attempt
+        @param  : cam_mode: reserved
+        @param  : BM: bool, if false, use stereoSGBM, otherwise, use stereoBM
+        @param  : filter: bool, if false, use stereoSGBM, otherwise, use stereoBM
+        @param  : filter_lambda: float, the lambda parameter of post WLS filter
+        @param  : filter_sigma: float, the sigmacolor parameter of post WLS filter
+        @param  : filter_unira: int, Margin in percentage by which the best (minimum) computed cost function value should "win" the second best value to consider the found match correct. Normally, a value within the 5-15 range is good enough.
+        @param  : numdisparity: int, Maximum disparity minus minimum disparity. The value is always greater than zero. In the current implementation, this parameter must be divisible by 16.
+        @param  : mindis: int, Minimum possible disparity value. Normally, it is zero but sometimes rectification algorithms can shift images, so this parameter needs to be adjusted accordingly.
+        @param  : block: int, Matched block size. It must be an odd number >=1 . Normally, it should be somewhere in the 3..11 range.
+        @param  : TextureThreshold: int, must be dividable by 16, the min disparity the SGBM will attempt
+        @param  : prefiltercap: int, Truncation value for the prefiltered image pixels. The algorithm first computes x-derivative at each pixel and clips its value by [-preFilterCap, preFilterCap] interval. The result values are passed to the Birchfield-Tomasi pixel cost function.
+        @param  : prefiltersize: int, Pre-processing filter window size, allowed range is [5,255], generally should be between 5x5 ... 21x21, parameters must be odd, INT type
+        @param  : prefiltertype: int, he type of preparation filter is mainly used to reduce the photometric distortions, eliminate noise and enhanced texture, etc., there are two optional types: CV_STEREO_BM_NORMALIZED_RESPONSE (normalized response) or CV_STEREO_BM_XSOBEL (horizontal direction Sobel Operator) , Default type), this parameter is int type
+        @param  : SpeckleWindowSize: int, Maximum size of smooth disparity regions to consider their noise speckles and invalidate. Set it to 0 to disable speckle filtering. Otherwise, set it somewhere in the 50-200 range.
+        @param  : speckleRange: int, Maximum disparity variation within each connected component. If you do speckle filtering, set the parameter to a positive value, it will be implicitly multiplied by 16. Normally, 1 or 2 is good enough.
+        @param  : sf_path: str, the stereo algorithm configuration save path
         -------
         @Returns  :
         -------
         """
         t0 = time.time()
         self.BM = BM
+        self.sf = cv2.FileStorage()
         Stereo_Matching.count += 1
+        self.filter_en = filter
         self.lamdba=filter_lambda
         self.sigma=filter_sigma
         self.unira=filter_unira
         if not self.BM:
             self.window_size = 3
+            '''
+            #The second parameter controlling the disparity smoothness. 
+            # The larger the values are, the smoother the disparity is. 
+            # P1 is the penalty on the disparity change by plus or minus 1 between neighbor pixels. 
+            # P2 is the penalty on the disparity change by more than 1 between neighbor pixels. 
+            # The algorithm requires P2 > P1 . 
+            # See stereo_match.cpp sample where some reasonably good P1 and P2 values are shown (like 8*number_of_image_channels*blockSize*blockSize and 32*number_of_image_channels*blockSize*blockSize , respectively).
+            '''            
             self.left_matcher = cv2.StereoSGBM_create(
-                minDisparity=0,
-                numDisparities=numdisparity,  # max_disp has to be dividable by 16 f. E. HH 192, 256
-                blockSize=3,
-                P1=8 * 3 * self.window_size ** 2,
-                P2=32 * 3 * self.window_size ** 2,
-                disp12MaxDiff=1,
-                uniquenessRatio=15,
-                speckleWindowSize=0,
-                speckleRange=2,
-                preFilterCap=63,
+                minDisparity=mindis,
+                numDisparities=numdisparity-mindis,  # max_disp has to be dividable by 16 f. E. HH 192, 256
+                blockSize=block,
+                P1=8 * 3 * self.window_size ** 2,   # The first parameter controlling the disparity smoothness. See below.
+                P2=32 * 3 * self.window_size ** 2,  
+                disp12MaxDiff=0,
+                uniquenessRatio=self.unira,
+                speckleWindowSize=SpeckleWindowSize,
+                speckleRange=speckleRange,
+                preFilterCap=prefiltercap,
                 mode=cv2.STEREO_SGBM_MODE_SGBM_3WAY
                 )
             print('\nSGBM Initial Done. (%.2fs)'%(time.time() - t0)) #cp3.5
         else:
-            self.left_matcher = cv2.StereoBM_create(numdisparity, 9)
+            self.left_matcher = cv2.StereoBM_create(numdisparity, block)
             self.left_matcher.setUniquenessRatio(self.unira)
-            # self.stereo.setTextureThreshold(5)
+            self.left_matcher.setTextureThreshold(TextureThreshold)
+            self.left_matcher.setMinDisparity(mindis)
+            self.left_matcher.setDisp12MaxDiff(0)
+            self.left_matcher.setSpeckleRange(speckleRange)
+            self.left_matcher.setSpeckleWindowSize(SpeckleWindowSize)
+            self.left_matcher.setBlockSize(block)
+            self.left_matcher.setNumDisparities(numdisparity)
+            self.left_matcher.setPreFilterCap(prefiltercap)
+            self.left_matcher.setPreFilterSize(prefiltersize)
+            self.left_matcher.setPreFilterType(prefiltertype)
+            # self.left_matcher.setROI1(0)
+            # self.left_matcher.setROI2(0)
+            # self.left_matcher.setSmallerBlockSize(0)
+
             print('\nBM Initial Done. (%.2fs)'%(time.time() - t0)) #cp3.5
-        self.right_matcher = cv2.ximgproc.createRightMatcher(self.left_matcher)
-        self.filter = cv2.ximgproc.createDisparityWLSFilter(self.left_matcher)
-        self.filter.setLambda(self.lamdba)
-        self.filter.setSigmaColor(self.sigma)
+        if self.filter_en:
+            self.right_matcher = cv2.ximgproc.createRightMatcher(self.left_matcher)
+            self.filter = cv2.ximgproc.createDisparityWLSFilter(self.left_matcher)
+            self.filter.setLambda(self.lamdba)
+            self.filter.setSigmaColor(self.sigma)
+        if sf_path != '':
+            self.write_file(sf_path)
 
     def change_parameters(self,filter_unira=-1,filter_lambda=-1,filter_sigma=-1):
         """
@@ -103,14 +145,48 @@ class Stereo_Matching:
             self.filter.setSigmaColor(filter_sigma)
             print('set filter sigma: %f'%filter_sigma)
         return 0
-            
+
+    def write_file(self,path):
+        file_path = os.path.join(path,'stereo_config.xml')
+        self.sf.open(file_path,cv2.FileStorage_WRITE)
+        self.sf.write('datetime', time.asctime())
+        if self.BM:
+            self.sf.startWriteStruct('stereoBM',cv2.FileNode_MAP)
+        else:
+            self.sf.startWriteStruct('stereoSGBM',cv2.FileNode_MAP)
+        self.sf.write('NumDisparities',self.left_matcher.getNumDisparities())
+        self.sf.write('MinDisparity',self.left_matcher.getMinDisparity())
+        self.sf.write('BlockSize',self.left_matcher.getBlockSize())
+        self.sf.write('Disp12MaxDiff',self.left_matcher.getDisp12MaxDiff())
+        self.sf.write('SpeckleRange',self.left_matcher.getSpeckleRange())
+        self.sf.write('SpeckleWindowSize',self.left_matcher.getSpeckleWindowSize())
+        self.sf.write('PreFilterCap',self.left_matcher.getPreFilterCap())
+        self.sf.write('UniquenessRatio',self.left_matcher.getUniquenessRatio())
+        if self.BM:
+            self.sf.write('PreFilterSize',self.left_matcher.getPreFilterSize())
+            self.sf.write('PreFilterType',self.left_matcher.getPreFilterType())
+            self.sf.write('ROI1',self.left_matcher.getROI1())
+            self.sf.write('ROI2',self.left_matcher.getROI2())
+            self.sf.write('SmallerBlockSize',self.left_matcher.getSmallerBlockSize())
+            self.sf.write('TextureThreshold',self.left_matcher.getTextureThreshold())
+        self.sf.endWriteStruct()
+        if self.filter_en:
+            self.sf.startWriteStruct('DisparityWLSFilter',cv2.FileNode_MAP)
+            self.sf.write('ConfidenceMap',self.filter.getConfidenceMap())
+            self.sf.write('DepthDiscontinuityRadius',self.filter.getDepthDiscontinuityRadius())
+            self.sf.write('Lambda',self.filter.getLambda())
+            self.sf.write('LRCthresh',self.filter.getLRCthresh())
+            self.sf.write('ROI',self.filter.getROI())
+            self.sf.write('SigmaColor',self.filter.getSigmaColor())
+            self.sf.endWriteStruct()
+        self.sf.release()
 
     def __del__(self):
         class_name=self.__class__.__name__
-        print (class_name,"release")
+        print ('\n',class_name,"release")
     
     # @timethis
-    def run(self,ImgL,ImgR,Queue,UMat=False):
+    def run(self,ImgL,ImgR,Queue,UMat=False,filter=True):
         """
         @description  :compute the disparity of ImgL and ImgR and put the disparity map to Queue
         ---------
@@ -118,30 +194,44 @@ class Stereo_Matching:
         @param  : ImgR, Gray image taked by the right camera
         @param  : Queue, the data container of python API queue, used for data interaction between thread
         @param  : UMat, bool, if true, the data type is UMat(GPU), otherwise, the data type is UMat(CPU)
+        @param  : filter, bool, if true, return the disparity map with post filter, otherwise, return the raw disparity map
         -------
         @Returns  : disparity, a Mat with the same shape as ImgL
         -------
         """
         t0=time.time()
-        if not self.BM:
-            if UMat:
-                disparity_left = self.left_matcher.compute(ImgL, ImgR, False).get().astype(np.float32) / 16.0
-                disparity_right = self.right_matcher.compute(ImgR, ImgL, False).get().astype(np.float32) / 16.0
+        if not self.filter_en:
+            if not self.BM:
+                if UMat:
+                    disparity_left = self.left_matcher.compute(ImgL, ImgR, False).get().astype(np.float32) / 16.0
+                else:
+                    disparity_left = self.left_matcher.compute(ImgL, ImgR, False).astype(np.float32) / 16.0
             else:
-                disparity_left = self.left_matcher.compute(ImgL, ImgR, False).astype(np.float32) / 16.0
-                disparity_right = self.right_matcher.compute(ImgR, ImgL, False).astype(np.float32) / 16.0
+                if UMat:
+                    disparity_left = self.left_matcher.compute(ImgL,ImgR).get().astype(np.float32) / 16.0
+                else:
+                    disparity_left = self.left_matcher.compute(ImgL,ImgR).astype(np.float32) / 16.0
+                logging.info('\nBM Done. (%.2fs)',(time.time() - t0)) #cp3.5  
+            Queue.put(disparity_left)
         else:
-            if UMat:
-                disparity_left = self.left_matcher.compute(ImgL,ImgR).get().astype(np.float32) / 16.0
-                disparity_right = self.right_matcher.compute(ImgR, ImgL).get().astype(np.float32) / 16.0
+            if not self.BM:
+                if UMat:
+                    disparity_left = self.left_matcher.compute(ImgL, ImgR, False).get().astype(np.float32) / 16.0
+                    disparity_right = self.right_matcher.compute(ImgR, ImgL, False).get().astype(np.float32) / 16.0
+                else:
+                    disparity_left = self.left_matcher.compute(ImgL, ImgR, False).astype(np.float32) / 16.0
+                    disparity_right = self.right_matcher.compute(ImgR, ImgL, False).astype(np.float32) / 16.0
             else:
-                disparity_left = self.left_matcher.compute(ImgL,ImgR).astype(np.float32) / 16.0
-                disparity_right = self.right_matcher.compute(ImgR, ImgL).astype(np.float32) / 16.0
-            logging.info('\nBM Done. (%.2fs)',(time.time() - t0)) #cp3.5
-        # disparity = disparity_left
-        disparity = self.filter.filter(disparity_left, ImgL, disparity_map_right=disparity_right)
-        Queue.put(disparity)
-        return disparity
+                if UMat:
+                    disparity_left = self.left_matcher.compute(ImgL,ImgR).get().astype(np.float32) / 16.0
+                    disparity_right = self.right_matcher.compute(ImgR, ImgL).get().astype(np.float32) / 16.0
+                else:
+                    disparity_left = self.left_matcher.compute(ImgL,ImgR).astype(np.float32) / 16.0
+                    disparity_right = self.right_matcher.compute(ImgR, ImgL).astype(np.float32) / 16.0
+                logging.info('\nBM Done. (%.2fs)',(time.time() - t0)) #cp3.5            
+            Queue.put(self.filter.filter(disparity_left, ImgL, disparity_map_right=disparity_right))
+
+        
 
 def disparity_centre(raw_box,ratio,disparity,focal,baseline,pixel_size):
     """
@@ -169,11 +259,12 @@ def disparity_centre(raw_box,ratio,disparity,focal,baseline,pixel_size):
     if (dx == 0) and (dy == 0):
         # %% caculate every pixel in box and get the Median
         for i in range(raw_box[2]-raw_box[0]):
-            # print('')
+            print('')
             for j in range(raw_box[3]-raw_box[1]):
-                # print(disparity[(raw_box[0]+i),(raw_box[1]+j)],end=',')
+                print(disparity[(raw_box[0]+i),(raw_box[1]+j)],end=',')
                 if disparity[(raw_box[0]+i),(raw_box[1]+j)] > 0:
                     depth.append(disparity[(raw_box[0]+i),(raw_box[1]+j)])
+        print('one box')
     else:
         cx,cy=int((raw_box[0]+raw_box[2])/2),int((raw_box[1]+raw_box[3])/2)
         dw,dh=int((raw_box[2]-raw_box[0])/6),int((raw_box[3]-raw_box[1])/6)
@@ -202,7 +293,6 @@ def disparity_centre(raw_box,ratio,disparity,focal,baseline,pixel_size):
                 dis_mean = d.mean()
                 depth.append(dis_mean)
     # %%%% TODO: 取众多框计算值的中位数 
-    # print('depth: ',depth)
     depth.sort()
     if len(depth) == 0:
         temp_dis = -1
@@ -213,73 +303,11 @@ def disparity_centre(raw_box,ratio,disparity,focal,baseline,pixel_size):
     # print(temp_dis)
     return temp_dis
 
-# %% standalone usage function
-def stereo_sgbm(ImgLPath='../data/images/left.png',ImgRPath='../data/images/right.png', path=True):
-    t0 = time.time()
-    imgL = cv2.imread(ImgLPath)
-    imgR = cv2.imread(ImgRPath)
-    # logging.info(f'Images Inital Done. ({time.time() - t0:.3f}s)') #cp3.6
-    logging.info('Images Inital Done. (%.2fs)',(time.time() - t0)) #cp3.5
-    # disparity range tuning
-    window_size = 3
-    # min_disp = 0
-    # num_disp = 320 - min_disp
-
-    stereo = cv2.StereoSGBM_create(
-        minDisparity=0,
-        numDisparities=240,  # max_disp has to be dividable by 16 f. E. HH 192, 256
-        blockSize=3,
-        P1=8 * 3 * window_size ** 2,
-        P2=32 * 3 * window_size ** 2,
-        disp12MaxDiff=1,
-        uniquenessRatio=15,
-        speckleWindowSize=0,
-        speckleRange=2,
-        preFilterCap=63,
-        mode=cv2.STEREO_SGBM_MODE_SGBM_3WAY
-        )
-    disparity = stereo.compute(imgL, imgR).astype(np.float32) / 16.0
-    # logging.info(f'SGBM Done. ({time.time() - t0:.3f}s)') #cp3.6
-    logging.info('SGBM Done. (%.2fs)',(time.time() - t0)) #cp3.5
-    print('SGBM Done. (%.2fs)'%(time.time() - t0)) #cp3.5
-    return disparity
-
-def detect_disparity(ImgLPath='../data/images/Left1_rectified.bmp',ImgRPath='../data/images/Right1_rectified.bmp'):
-    imgL = cv2.imread(ImgLPath)
-    imgR = cv2.imread(ImgRPath)
-    # disparity range tuning
-    window_size = 3
-    # min_disp = 0
-    # num_disp = 320 - min_disp
-
-    stereo = cv2.StereoSGBM_create(
-        minDisparity=0,
-        numDisparities=240,  # max_disp has to be dividable by 16 f. E. HH 192, 256
-        blockSize=3,
-        P1=8 * 3 * window_size ** 2,
-        P2=32 * 3 * window_size ** 2,
-        disp12MaxDiff=1,
-        uniquenessRatio=15,
-        speckleWindowSize=0,
-        speckleRange=2,
-        preFilterCap=63,
-        mode=cv2.STEREO_SGBM_MODE_SGBM_3WAY
-        )
-    disparity = stereo.compute(imgL, imgR).astype(np.float32) / 16.0
-
-    fig, ax = plt.subplots()
-    plt.imshow(disparity, 'gray')
-    cursor = Cursor(ax)
-    fig.canvas.mpl_connect('motion_notify_event', cursor.mouse_move)
-    
-    plt.show()
-
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--left_source', type=str, default='data/images/left.png', help='source')
     parser.add_argument('--right_source', type=str, default='data/images/left.png', help='source')
     opt = parser.parse_args()
     print(opt)    
-    detect_disparity()
 
 
