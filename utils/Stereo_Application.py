@@ -65,7 +65,6 @@ class Stereo_Matching:
         """
         t0 = time.time()
         self.BM = BM
-        self.sf = cv2.FileStorage()
         Stereo_Matching.count += 1
         self.filter_en = filter
         self.lamdba=filter_lambda
@@ -85,9 +84,9 @@ class Stereo_Matching:
                 minDisparity=mindis,
                 numDisparities=numdisparity-mindis,  # max_disp has to be dividable by 16 f. E. HH 192, 256
                 blockSize=block,
-                P1=8 * 3 * self.window_size ** 2,   # The first parameter controlling the disparity smoothness. See below.
+                P1=8 * 3 * self.window_size ** 2,   
                 P2=32 * 3 * self.window_size ** 2,  
-                disp12MaxDiff=0,
+                disp12MaxDiff=1,
                 uniquenessRatio=self.unira,
                 speckleWindowSize=SpeckleWindowSize,
                 speckleRange=speckleRange,
@@ -100,7 +99,7 @@ class Stereo_Matching:
             self.left_matcher.setUniquenessRatio(self.unira)
             self.left_matcher.setTextureThreshold(TextureThreshold)
             self.left_matcher.setMinDisparity(mindis)
-            self.left_matcher.setDisp12MaxDiff(0)
+            self.left_matcher.setDisp12MaxDiff(1)
             self.left_matcher.setSpeckleRange(speckleRange)
             self.left_matcher.setSpeckleWindowSize(SpeckleWindowSize)
             self.left_matcher.setBlockSize(block)
@@ -147,6 +146,7 @@ class Stereo_Matching:
         return 0
 
     def write_file(self,path):
+        self.sf = cv2.FileStorage()
         file_path = os.path.join(path,'stereo_config.xml')
         self.sf.open(file_path,cv2.FileStorage_WRITE)
         self.sf.write('datetime', time.asctime())
@@ -169,6 +169,8 @@ class Stereo_Matching:
             self.sf.write('ROI2',self.left_matcher.getROI2())
             self.sf.write('SmallerBlockSize',self.left_matcher.getSmallerBlockSize())
             self.sf.write('TextureThreshold',self.left_matcher.getTextureThreshold())
+        else:
+            self.sf.write('Mode',self.left_matcher.getMode())
         self.sf.endWriteStruct()
         if self.filter_en:
             self.sf.startWriteStruct('DisparityWLSFilter',cv2.FileNode_MAP)
@@ -186,7 +188,7 @@ class Stereo_Matching:
         print ('\n',class_name,"release")
     
     # @timethis
-    def run(self,ImgL,ImgR,Queue,UMat=False,filter=True):
+    def run(self,ImgL,ImgR,Q,Queue,UMat=False,filter=True):
         """
         @description  :compute the disparity of ImgL and ImgR and put the disparity map to Queue
         ---------
@@ -212,7 +214,8 @@ class Stereo_Matching:
                 else:
                     disparity_left = self.left_matcher.compute(ImgL,ImgR).astype(np.float32) / 16.0
                 logging.info('\nBM Done. (%.2fs)',(time.time() - t0)) #cp3.5  
-            Queue.put(disparity_left)
+            color_3d = cv2.reprojectImageTo3D(disparity_left,Q).reshape(-1,416,3)
+            Queue.put((disparity_left,color_3d))
         else:
             if not self.BM:
                 if UMat:
@@ -229,11 +232,13 @@ class Stereo_Matching:
                     disparity_left = self.left_matcher.compute(ImgL,ImgR).astype(np.float32) / 16.0
                     disparity_right = self.right_matcher.compute(ImgR, ImgL).astype(np.float32) / 16.0
                 logging.info('\nBM Done. (%.2fs)',(time.time() - t0)) #cp3.5            
-            Queue.put(self.filter.filter(disparity_left, ImgL, disparity_map_right=disparity_right))
+            disparity=self.filter.filter(disparity_left, ImgL, disparity_map_right=disparity_right)
+            color_3d = cv2.reprojectImageTo3D(disparity,Q).reshape(-1,416,3)
+            Queue.put((disparity,color_3d))
 
         
 
-def disparity_centre(raw_box,ratio,disparity,focal,baseline,pixel_size):
+def disparity_centre(raw_box,ratio,disparity,depth_map,focal,baseline,pixel_size):
     """
     @description  : from disparity map get the depth prediction of the (x_centre,y_centre) point
     ---------
@@ -241,6 +246,7 @@ def disparity_centre(raw_box,ratio,disparity,focal,baseline,pixel_size):
         raw_box: the coordinates of the opposite angle of the prediction box
         ratio: the distance between to centre point
         disparity: type array, disparity map
+        depth_map: type array, depth map
         focal: focal length in pixel unit 
         baseline: baseline in mm unit
         pixel_size: pixel_size in mm unit
@@ -259,12 +265,13 @@ def disparity_centre(raw_box,ratio,disparity,focal,baseline,pixel_size):
     if (dx == 0) and (dy == 0):
         # %% caculate every pixel in box and get the Median
         for i in range(raw_box[2]-raw_box[0]):
-            print('')
+            print('\ndisparity row:',end=' ')
             for j in range(raw_box[3]-raw_box[1]):
                 print(disparity[(raw_box[0]+i),(raw_box[1]+j)],end=',')
-                if disparity[(raw_box[0]+i),(raw_box[1]+j)] > 0:
-                    depth.append(disparity[(raw_box[0]+i),(raw_box[1]+j)])
-        print('one box')
+                # if disparity[(raw_box[0]+i),(raw_box[1]+j)] > -11:
+                #     depth.append(disparity[(raw_box[0]+i),(raw_box[1]+j)])
+                depth.append(depth_map[(raw_box[0]+i),(raw_box[1]+j)])
+        print(depth,end='\r')
     else:
         cx,cy=int((raw_box[0]+raw_box[2])/2),int((raw_box[1]+raw_box[3])/2)
         dw,dh=int((raw_box[2]-raw_box[0])/6),int((raw_box[3]-raw_box[1])/6)
@@ -283,25 +290,131 @@ def disparity_centre(raw_box,ratio,disparity,focal,baseline,pixel_size):
                 for j in range(5):
                     nx,ny=int(x_centre+p[i]*dx),int(y_centre+p[j]*dy)
                     # print('(%d,%d)'%(nx,ny),end=' ')
-                    d.flat[5*i+j]=disparity[ny,nx]
+                    # d.flat[5*i+j]=disparity[ny,nx]
+                    d.flat[5*i+j]=depth_map[ny,nx]
             d=d.ravel()
-            d=d[d>0.]
+            d=d[d>-11.]
             d=np.sort(d,axis=None)
-            # print(d)
+            print(d,end='\r')
             if len(d) >= 5:
                 d=np.delete(d,[0,-1])
                 dis_mean = d.mean()
                 depth.append(dis_mean)
     # %%%% TODO: 取众多框计算值的中位数 
+    depth = np.abs(depth)
     depth.sort()
     if len(depth) == 0:
         temp_dis = -1
     elif (len(depth)%2 == 0) & (len(depth)>1):
-        temp_dis = ((focal*baseline/depth[math.floor(len(depth)/2)])+(focal*baseline/depth[math.floor(len(depth)/2)-1]))/2
+        if (depth[math.floor(len(depth)/2)] != 0) and (depth[math.floor(len(depth)/2)-1] != 0):
+            # temp_dis = ((focal*baseline/abs(depth[math.floor(len(depth)/2)]))+(focal*baseline/abs(depth[math.floor(len(depth)/2)-1])))/2
+            temp_dis = (depth[math.floor(len(depth)/2)] + depth[math.floor(len(depth)/2)-1])/2
+        else:
+            temp_dis = -1
     else:
-        temp_dis = focal*baseline/depth[math.floor(len(depth)/2)]
-    # print(temp_dis)
+        if depth[math.floor(len(depth)/2)] != 0:
+            # temp_dis = focal*baseline/abs(depth[math.floor(len(depth)/2)])
+            temp_dis = depth[math.floor(len(depth)/2)]
+        else:
+            temp_dis = -1
     return temp_dis
+
+def remove_invalid(disp_arr, points, colors):
+    mask = (
+        (disp_arr > disp_arr.min()) &
+        np.all(~np.isnan(points), axis=1) &
+        np.all(~np.isinf(points), axis=1)
+    )
+    return points[mask], colors[mask]
+
+
+def calc_point_cloud(image, disp, q):
+    points = cv2.reprojectImageTo3D(disp, q).reshape(-1, 3)
+    colors = image.reshape(-1, 3)
+    return remove_invalid(disp.reshape(-1), points, colors)
+
+
+def project_points(points, colors, r, t, k, dist_coeff, width, height):
+    projected, _ = cv2.projectPoints(points, r, t, k, dist_coeff)
+    xy = projected.reshape(-1, 2).astype(np.int)
+    mask = (
+        (0 <= xy[:, 0]) & (xy[:, 0] < width) &
+        (0 <= xy[:, 1]) & (xy[:, 1] < height)
+    )
+    return xy[mask], colors[mask]
+
+
+def calc_projected_image(points, colors, r, t, k, dist_coeff, width, height):
+    xy, cm = project_points(points, colors, r, t, k, dist_coeff, width, height)
+    image = np.zeros((height, width, 3), dtype=colors.dtype)
+    image[xy[:, 1], xy[:, 0]] = cm
+    return image
+
+
+def rotate(arr, anglex, anglez):
+    return np.array([  # rx
+        [1, 0, 0],
+        [0, np.cos(anglex), -np.sin(anglex)],
+        [0, np.sin(anglex), np.cos(anglex)]
+    ]).dot(np.array([  # rz
+        [np.cos(anglez), 0, np.sin(anglez)],
+        [0, 1, 0],
+        [-np.sin(anglez), 0, np.cos(anglez)]
+    ])).dot(arr)
+
+
+def reproject_3dcloud(left_image, disparity, focal_length, tx):
+    image = left_image
+    height, width, _ = image.shape
+
+    q = np.array([
+        [1, 0, 0, -width/2],
+        [0, 1, 0, -height/2],
+        [0, 0, 0, focal_length],
+        [0, 0, -1/tx, 0]
+    ])
+    points, colors = calc_point_cloud(image, disparity, q)
+
+    r = np.eye(3)
+    t = np.array([0, 0, -100.0])
+    k = np.array([
+        [focal_length, 0, width/2],
+        [0, focal_length, height/2],
+        [0, 0, 1]
+    ])
+    dist_coeff = np.zeros((4, 1))
+
+    def view(r, t):
+        cv2.imshow('projected', calc_projected_image(
+            points, colors, r, t, k, dist_coeff, width, height
+        ))
+
+    view(r, t)
+
+    angles = {  # x, z
+        'w': (-np.pi/6, 0),
+        's': (np.pi/6, 0),
+        'a': (0, np.pi/6),
+        'd': (0, -np.pi/6)
+    }
+
+    while 1:
+        key = cv2.waitKey(0)
+
+        if key not in range(256):
+            continue
+
+        ch = chr(key)
+        if ch in angles:
+            ax, az = angles[ch]
+            r = rotate(r, -ax, -az)
+            t = rotate(t, ax, az)
+            view(r, t)
+
+        elif ch == '\x1b':  # esc
+            cv2.destroyAllWindows()
+            break
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
