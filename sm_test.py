@@ -17,7 +17,7 @@ import numpy as np
 import matplotlib.pyplot as plt 
 from threading import Thread
 from utils.img_preprocess import Image_Rectification
-from utils.Stereo_Application import Stereo_Matching,disparity_centre
+from utils.Stereo_Application import Stereo_Matching,reproject_3dcloud
 from utils.dataset import DATASET_NAMES,loadfiles,loadcam
 from utils.stereoconfig import stereoCamera
 from utils.general import confirm_dir,timethis,timeblock,socket_client,calib_type,camera_mode
@@ -81,24 +81,34 @@ def sm_run():
         else:
             frame = str(dataset.count)+'-'+str(dataset.frame)                    
         img_raw, img_ai, img_left, img_right, gain, padding=Image_Rectification(camera_config, img_left, img_right, imgsz=args.img_size, debug=True, UMat=args.UMat, cam_mode=cam_mode.mode.value)
-        sm_model.run(img_left,img_right,disparity_queue,args.UMat,args.filter)
-        disparity = disparity_queue.get()
+        sm_model.run(img_left,img_right,camera_config.Q,disparity_queue,args.UMat,args.filter)
+        disparity,color_3d = disparity_queue.get()
         # print('disparity max: %.2f;min: %.2f'%(np.amax(disparity),np.amin(disparity)),end='\r')
         if padding != 0:    
             img_ai = np.ravel(img_ai)
             img_ai = img_ai[padding[0]*args.img_size[0]*3:(-(padding[0])*args.img_size[0]*3)]     
             img_ai = np.reshape(img_ai,(-1,416,3))          
-            disparity = np.ravel(disparity)
-            disparity = disparity[padding[0]*args.img_size[0]:(-(padding[0])*args.img_size[0])]
-            disparity = np.reshape(disparity,(-1,416))    
-            print('disparity max: %.2f;min: %.2f'%(np.amax(disparity),np.amin(disparity)),end='\r')
-            minVal = np.amin(disparity)
-            maxVal = np.amax(disparity)
-        disparity_color = cv2.applyColorMap(cv2.convertScaleAbs(disparity, alpha=255.0/(maxVal-minVal),beta=-minVal*255.0/(maxVal-minVal)), cv2.COLORMAP_JET)
+            # disparity = np.ravel(disparity)
+            # disparity = disparity[padding[0]*args.img_size[0]:(-(padding[0])*args.img_size[0])]
+            # disparity = np.reshape(disparity,(-1,416))    
+            # print('disparity max: %.2f;min: %.2f'%(np.amax(disparity),np.amin(disparity)),end='--')
+            # minVal = np.amin(disparity)
+            # maxVal = np.amax(disparity)
+            color_3d = np.ravel(color_3d[:,:,2])
+            color_3d = np.divide(color_3d,1000)
+            color_3d = color_3d[padding[0]*args.img_size[0]:(-(padding[0])*args.img_size[0])]
+            color_3d = np.reshape(color_3d,(-1,416))    
+            print('distance max: %.2f;min: %.2f'%(np.amax(color_3d),np.amin(color_3d)),end='\r')
+            minVal = np.amin(color_3d)
+            maxVal = np.amax(color_3d)            
+        # reproject_3dcloud(img_ai,disparity,camera_config.focal_length,camera_config.baseline)
+        disparity_color = cv2.applyColorMap(cv2.convertScaleAbs(color_3d, alpha=255.0/(maxVal-minVal),beta=-minVal*255.0/(maxVal-minVal)), cv2.COLORMAP_JET)
         file_name = os.path.join(path_name,dataset.file_name)
-        merge = cv2.hconcat([disparity_color,img_ai])
-        cv2.imshow('Disparity',merge)
-        cv2.imwrite(file_name,merge)
+        # merge = cv2.hconcat([disparity_color,img_ai])
+        # cv2.imshow('Disparity',merge)
+        cv2.imshow('color',disparity_color)
+        cv2.imshow('raw_image',img_ai)
+        # cv2.imwrite(file_name,merge)
         if cv2.waitKey(1) == ord('q'):
             break
     # sm_model.write_file(path_name)
@@ -116,10 +126,10 @@ if __name__ == '__main__':
     parser.add_argument("--out_range", help="The data size for model input", nargs='+', type=float, default=[0.5,1])
     parser.add_argument("--sm_lambda", help="Stereo matching post filter parameter lambda", type=float, default=8000)
     parser.add_argument("--sm_sigma", help="Stereo matching post filter parameter sigmacolor", type=float, default=2.0)
-    parser.add_argument("--sm_UniRa", help="Stereo matching post filter parameter UniquenessRatio", type=int, default=40)
-    parser.add_argument("--sm_numdi", help="Stereo matching max number disparity", type=int, default=48)
-    parser.add_argument("--sm_mindi", help="Stereo matching min number disparity", type=int, default=16)
-    parser.add_argument("--sm_block", help="Stereo matching blocksize", type=int, default=15)
+    parser.add_argument("--sm_UniRa", help="Stereo matching post filter parameter UniquenessRatio", type=int, default=5)
+    parser.add_argument("--sm_numdi", help="Stereo matching max number disparity", type=int, default=64)
+    parser.add_argument("--sm_mindi", help="Stereo matching min number disparity", type=int, default=-5)
+    parser.add_argument("--sm_block", help="Stereo matching blocksize", type=int, default=9)
     parser.add_argument("--sm_tt", help="Stereo matching blocksize", type=int, default=5)        
     parser.add_argument("--sm_pfc", help="Stereo matching PreFilterCap", type=int, default=63)    
     parser.add_argument("--sm_pfs", help="Stereo matching PreFilterSize", type=int, default=9)    
