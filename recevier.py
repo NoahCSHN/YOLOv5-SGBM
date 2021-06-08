@@ -58,7 +58,7 @@ class rospublisher:
         rospy.init_node('AvoidModel', anonymous=True)
         self._coor_pub=rospy.Publisher('Avoid_Object_Position',PolygonStamped,queue_size=10)    
         self._img_pub=rospy.Publisher('Postproc_Images',Image,queue_size=10)
-        self._cloud_img_pub=rospy.Publisher('Disparity_Images',Image,queue_size=10)
+        # self._cloud_img_pub=rospy.Publisher('Disparity_Images',Image,queue_size=10)
         self.r=rospy.Rate(1)
 
     def __del__(self):
@@ -111,9 +111,9 @@ class rospublisher:
         bridge=CvBridge()
         self._img_pub.publish(bridge.cv2_to_imgmsg(img, encoding="passthrough"))
 
-    def pub_cloud_img(self,img):
-        bridge=CvBridge()
-        self._cloud_img_pub.publish(bridge.cv2_to_imgmsg(img, encoding="passthrough"))
+    # def pub_cloud_img(self,img):
+    #     bridge=CvBridge()
+    #     self._cloud_img_pub.publish(bridge.cv2_to_imgmsg(img, encoding="passthrough"))
 
 # 接受图片及大小的信息
 def recvall(sock, count):#读取count长度的数据
@@ -184,8 +184,9 @@ def netdata_pipe(server_soc, videoWriter, pub):
                         stringData = recvall(conn,(dis_img_length))
                         dis_img = numpy.frombuffer(stringData,numpy.uint8)  # 将获取到的字符流数据转换成1维数组 data = numpy.fromstring() numpy.frombuffer
                         dis_img = numpy.reshape(dis_img,(int(dis_resolution[0]),int(dis_resolution[1]),3))
+                        img = cv2.hconcat([img,dis_img])
                         pub.pub_img(img)
-                        pub.pub_cloud_img(dis_img)
+                        # pub.pub_cloud_img(dis_img)
                     conn.sendall('Ready for Coordinates'.encode('utf-8'))
                     stringData = conn.recv(block)#nt()只能转化由纯数字组成的字符串
                     stringData = stringData.decode()
