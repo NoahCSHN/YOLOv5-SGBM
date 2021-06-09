@@ -38,7 +38,7 @@ class Stereo_Matching:
                  filter_unira=5,
                  numdisparity=64, mindis=0, block=9, TextureThreshold=5,
                  prefiltercap=63, prefiltersize=9, prefiltertype=1,
-                 SpeckleWindowSize=50, speckleRange=2,
+                 SpeckleWindowSize=50, speckleRange=2,disp12maxdiff=1,
                  sf_path=''):
         """
         @description  : initialize stereoBM or stereoSGBM alogrithm
@@ -58,6 +58,7 @@ class Stereo_Matching:
         @param  : prefiltertype: int, he type of preparation filter is mainly used to reduce the photometric distortions, eliminate noise and enhanced texture, etc., there are two optional types: CV_STEREO_BM_NORMALIZED_RESPONSE (normalized response) or CV_STEREO_BM_XSOBEL (horizontal direction Sobel Operator) , Default type), this parameter is int type
         @param  : SpeckleWindowSize: int, Maximum size of smooth disparity regions to consider their noise speckles and invalidate. Set it to 0 to disable speckle filtering. Otherwise, set it somewhere in the 50-200 range.
         @param  : speckleRange: int, Maximum disparity variation within each connected component. If you do speckle filtering, set the parameter to a positive value, it will be implicitly multiplied by 16. Normally, 1 or 2 is good enough.
+        @param  : disp12maxdiff: int, Maximum allowed difference (in integer pixel units) in the left-right disparity check. Set it to a non-positive value to disable the check.
         @param  : sf_path: str, the stereo algorithm configuration save path
         -------
         @Returns  :
@@ -99,7 +100,7 @@ class Stereo_Matching:
             self.left_matcher.setUniquenessRatio(self.unira)
             self.left_matcher.setTextureThreshold(TextureThreshold)
             self.left_matcher.setMinDisparity(mindis)
-            self.left_matcher.setDisp12MaxDiff(1)
+            self.left_matcher.setDisp12MaxDiff(disp12maxdiff)
             self.left_matcher.setSpeckleRange(speckleRange)
             self.left_matcher.setSpeckleWindowSize(SpeckleWindowSize)
             self.left_matcher.setBlockSize(block)
@@ -238,7 +239,7 @@ class Stereo_Matching:
 
         
 
-def disparity_centre(raw_box,ratio,disparity,depth_map,focal,baseline,pixel_size):
+def disparity_centre(raw_box,ratio,disparity,depth_map,focal,baseline,pixel_size,mindisparity):
     """
     @description  : from disparity map get the depth prediction of the (x_centre,y_centre) point
     ---------
@@ -265,13 +266,13 @@ def disparity_centre(raw_box,ratio,disparity,depth_map,focal,baseline,pixel_size
     if (dx == 0) and (dy == 0):
         # %% caculate every pixel in box and get the Median
         for i in range(raw_box[2]-raw_box[0]):
-            print('\ndisparity row:',end=' ')
+            # print('\ndisparity row:',end=' ')
             for j in range(raw_box[3]-raw_box[1]):
-                print(disparity[(raw_box[0]+i),(raw_box[1]+j)],end=',')
+                # print(disparity[(raw_box[0]+i),(raw_box[1]+j)],end=',')
                 # if disparity[(raw_box[0]+i),(raw_box[1]+j)] > -11:
                 #     depth.append(disparity[(raw_box[0]+i),(raw_box[1]+j)])
                 depth.append(depth_map[(raw_box[0]+i),(raw_box[1]+j)])
-        print(depth,end='\r')
+        # print(depth,end='\r')
     else:
         cx,cy=int((raw_box[0]+raw_box[2])/2),int((raw_box[1]+raw_box[3])/2)
         dw,dh=int((raw_box[2]-raw_box[0])/6),int((raw_box[3]-raw_box[1])/6)
@@ -293,9 +294,12 @@ def disparity_centre(raw_box,ratio,disparity,depth_map,focal,baseline,pixel_size
                     # d.flat[5*i+j]=disparity[ny,nx]
                     d.flat[5*i+j]=depth_map[ny,nx]
             d=d.ravel()
-            d=d[d>-11.]
+            if mindisparity < 0:
+                d=d[d>(mindisparity-1.)]
+            else:
+                d=d[d>-1.]
             d=np.sort(d,axis=None)
-            print(d,end='\r')
+            # print(d,end='\r')
             if len(d) >= 5:
                 d=np.delete(d,[0,-1])
                 dis_mean = d.mean()

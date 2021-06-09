@@ -19,7 +19,7 @@ from utils.img_preprocess import Image_Rectification
 from utils.Stereo_Application import Stereo_Matching,disparity_centre,reproject_3dcloud
 from utils.dataset import DATASET_NAMES,loadfiles,loadcam
 from utils.stereoconfig import stereoCamera
-from utils.general import confirm_dir,timethis,timeblock,socket_client,calib_type,camera_mode
+from utils.general import confirm_dir,timethis,timeblock,socket_client,calib_type,camera_mode,matching_points_gen
 
 # %% initial environment
 def platform_init(imgsz=640, tcp_address=('192.168.3.181',9191), save_path=''):
@@ -47,8 +47,8 @@ def platform_init(imgsz=640, tcp_address=('192.168.3.181',9191), save_path=''):
     SM = Stereo_Matching(cam_mode.mode, args.BM, args.filter,\
                          args.sm_lambda, args.sm_sigma, args.sm_UniRa,\
                          args.sm_numdi, args.sm_mindi, args.sm_block, args.sm_tt,\
-                         args.sm_pfc, args.sm_pfs,args.sm_pft,\
-                         args.sm_sws,args.sm_sr, save_path)
+                         args.sm_pfc, args.sm_pfs, args.sm_pft,\
+                         args.sm_sws, args.sm_sr, args.sm_d12md, save_path)
     #init AI model
     MASKS = [[0,1,2],[3,4,5],[6,7,8]]
     ANCHORS = [[10, 13], [16, 30], [33, 23], [30, 61], [62, 45], [59, 119], [116, 90], [156, 198], [373, 326]]
@@ -146,15 +146,27 @@ def object_matching(ai_model,sm_model,camera_config,dataset,ratio,imgsz,fps,debu
             raw_coords = preds[3]
         index = 0
         for label,score,box,raw_box in zip(labels,scores,coords,raw_coords):
+            txt_path = confirm_dir(args.save_path,'txt')
+            with open(os.path.join(txt_path,str(dataset.count)+'.txt'),'a+') as f:
+                        line = '['+str(raw_box[0])+','+str(raw_box[1])+']'+'\n'
+                        f.write(line)
+                        line = '['+str(raw_box[2])+','+str(raw_box[3])+']'+'\n'
+                        f.write(line)
             if score >= args.score:
                 pred = []
-                temp_dis = disparity_centre(raw_box, ratio, disparity, color_3d, camera_config.focal_length, camera_config.baseline, camera_config.pixel_size)
+                temp_dis = disparity_centre(raw_box, ratio, disparity, color_3d, camera_config.focal_length, camera_config.baseline, camera_config.pixel_size, args.sm_mindi)
                 if (temp_dis >= args.out_range[0]*1000) & (temp_dis <= args.out_range[1]*1000):
+                    # distance.append([label,\
+                    #     float((raw_box[0]-v)*temp_dis/fx),\
+                    #     float((raw_box[3]-u)*temp_dis/fy),\
+                    #     float((raw_box[2]-v)*temp_dis/fx),\
+                    #     float((raw_box[3]-u)*temp_dis/fy),\
+                    #     float(temp_dis)]) # two bottom corners and distance to focal point
                     distance.append([label,\
-                        float((box[0]-v)*temp_dis/fx),\
-                        float((box[3]-u)*temp_dis/fy),\
-                        float((box[2]-v)*temp_dis/fx),\
-                        float((box[3]-u)*temp_dis/fy),\
+                        float(color_3d[raw_box[0],raw_box[0]-1]),\
+                        float(color_3d[raw_box[0],raw_box[3]]),\
+                        float(color_3d[raw_box[0],raw_box[2]-1]),\
+                        float(color_3d[raw_box[0],raw_box[3]]),\
                         float(temp_dis)]) # two bottom corners and distance to focal point
 
             # %%%% TODO: 将最终深度结果画到图像里
@@ -177,7 +189,7 @@ def object_matching(ai_model,sm_model,camera_config,dataset,ratio,imgsz,fps,debu
                 dataset.get_vid_dir(file_path)
                 dataset.writer.write(img_ai)
             txt_path = confirm_dir(args.save_path,'txt')
-            with open(os.path.join(txt_path,'result'),'a+') as f:
+            with open(os.path.join(txt_path,'result.txt'),'w') as f:
                 f.write('-----------------'+real_time+str(frame)+'-----------------\n')
                 for pred in distance[1:]:
                     line = real_time+': '+str(pred[0])+','+str(pred[1])+','+str(pred[2])+','+str(pred[3])+','+str(pred[4])+','+str(pred[5])+'\n'
@@ -252,6 +264,7 @@ if __name__ == '__main__':
     parser.add_argument("--sm_pft", help="Stereo matching PreFilterType", type=int, default=1)    
     parser.add_argument("--sm_sws", help="Stereo matching SpeckleWindowSize", type=int, default=50)  
     parser.add_argument("--sm_sr", help="Stereo matching SpeckleRange", type=int, default=2)    
+    parser.add_argument("--sm_d12md", help="Stereo matching Disp12MaxDiff", type=int, default=1)    
     parser.add_argument("--score", help="inference score threshold", type=float, default=0)
     parser.add_argument("--fps", help="The webcam frequency", type=int, default=1)
     parser.add_argument("--cam_type", help="0: OV9714, 1: AR0135 1280X720; 2: AR0135 1280X960; 3:AR0135 416X416; 4:AR0135 640X640; 5:AR0135 640X480; 6:MIDDLEBURY 416X360", type=int, default=5)
