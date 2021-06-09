@@ -20,7 +20,7 @@ from utils.img_preprocess import Image_Rectification
 from utils.Stereo_Application import Stereo_Matching,reproject_3dcloud
 from utils.dataset import DATASET_NAMES,loadfiles,loadcam
 from utils.stereoconfig import stereoCamera
-from utils.general import confirm_dir,timethis,timeblock,socket_client,calib_type,camera_mode
+from utils.general import confirm_dir,timethis,timeblock,socket_client,calib_type,camera_mode,matching_points_gen
 
 def sm_run():
     #init stereo matching model
@@ -41,6 +41,7 @@ def sm_run():
                                             '_'+str(args.sm_pft)+\
                                             '_'+str(args.sm_sws)+\
                                             '_'+str(args.sm_sr)+\
+                                            '_'+str(args.sm_d12md)+\
                                             '_'+str(args.cam_type))
     else:
         path_name = confirm_dir(path_name,'stereoSGBM'+\
@@ -55,14 +56,15 @@ def sm_run():
                                             '_'+str(args.sm_pfc)+\
                                             '_'+str(args.sm_sws)+\
                                             '_'+str(args.sm_sr)+\
+                                            '_'+str(args.sm_d12md)+\
                                             '_'+str(args.cam_type))
     if Stereo_Matching.count != 0:
         del sm_model
     sm_model = Stereo_Matching(cam_mode.mode, args.BM, args.filter,\
                                args.sm_lambda, args.sm_sigma, args.sm_UniRa,\
                                args.sm_numdi, args.sm_mindi, args.sm_block, args.sm_tt,\
-                               args.sm_pfc, args.sm_pfs,args.sm_pft,\
-                               args.sm_sws,args.sm_sr, path_name)
+                               args.sm_pfc, args.sm_pfs, args.sm_pft,\
+                               args.sm_sws, args.sm_sr, args.sm_d12md, path_name)
 
     #data source configuration
     if args.webcam:
@@ -84,34 +86,46 @@ def sm_run():
         sm_model.run(img_left,img_right,camera_config.Q,disparity_queue,args.UMat,args.filter)
         disparity,color_3d = disparity_queue.get()
         # print('disparity max: %.2f;min: %.2f'%(np.amax(disparity),np.amin(disparity)),end='\r')
+        points = []
+        try:
+            with open(os.path.join('runs/detect/test/txt',str(dataset.count)+'.txt'),'r') as f:
+                files = f.readlines()
+                for point in files:
+                    points.append([int(point.split(',')[1].split(']')[0]),int(point.split(',')[0][1:])])  
+        except Exception as e:
+            print(e,end='\r')
+        stereo_merge = matching_points_gen(disparity,img_left,img_right,points,[0,0])        
         if padding != 0:    
+            stereo_merge = np.ravel(stereo_merge)
+            stereo_merge = stereo_merge[padding[0]*args.img_size[0]*2:(-(padding[0])*args.img_size[0]*2)]
+            stereo_merge = np.reshape(stereo_merge,(-1,832))
             img_ai = np.ravel(img_ai)
-            img_ai = img_ai[padding[0]*args.img_size[0]*3:(-(padding[0])*args.img_size[0]*3)]     
+            img_ai = img_ai[padding[0]*args.img_size[0]*3:(-(padding[0])*args.img_size[0]*3)]
             img_ai = np.reshape(img_ai,(-1,416,3))          
-            # disparity = np.ravel(disparity)
-            # disparity = disparity[padding[0]*args.img_size[0]:(-(padding[0])*args.img_size[0])]
-            # disparity = np.reshape(disparity,(-1,416))    
-            # print('disparity max: %.2f;min: %.2f'%(np.amax(disparity),np.amin(disparity)),end='--')
-            # minVal = np.amin(disparity)
-            # maxVal = np.amax(disparity)
+            disparity = np.ravel(disparity)
+            disparity = disparity[padding[0]*args.img_size[0]:(-(padding[0])*args.img_size[0])]
+            disparity = np.reshape(disparity,(-1,416))    
+            # print('disparity max: %.2f;min: %.2f'%(np.amax(disparity),np.amin(disparity)),end='\r')
+            minVal = np.amin(disparity)
+            maxVal = np.amax(disparity)
             color_3d = np.ravel(color_3d[:,:,2])
             color_3d = np.divide(color_3d,1000)
             color_3d = color_3d[padding[0]*args.img_size[0]:(-(padding[0])*args.img_size[0])]
-            color_3d = np.reshape(color_3d,(-1,416))    
-            print('distance max: %.2f;min: %.2f'%(np.amax(color_3d),np.amin(color_3d)),end='\r')
-            minVal = np.amin(color_3d)
-            maxVal = np.amax(color_3d)            
+            color_3d = np.reshape(color_3d,(-1,416))
+            # print('distance max: %.2f;min: %.2f'%(np.amax(color_3d),np.amin(color_3d)),end='\r')
+            # minVal = np.amin(color_3d)
+            # maxVal = np.amax(color_3d)
         # reproject_3dcloud(img_ai,disparity,camera_config.focal_length,camera_config.baseline)
-        disparity_color = cv2.applyColorMap(cv2.convertScaleAbs(color_3d, alpha=255.0/(maxVal-minVal),beta=-minVal*255.0/(maxVal-minVal)), cv2.COLORMAP_JET)
-        file_name = os.path.join(path_name,dataset.file_name)
-        # merge = cv2.hconcat([disparity_color,img_ai])
-        # cv2.imshow('Disparity',merge)
-        cv2.imshow('color',disparity_color)
-        cv2.imshow('raw_image',img_ai)
-        # cv2.imwrite(file_name,merge)
+        disparity_color = cv2.applyColorMap(cv2.convertScaleAbs(disparity, alpha=255.0/(maxVal-minVal),beta=-minVal*255.0/(maxVal-minVal)), cv2.COLORMAP_JET)
+        color_merge = cv2.hconcat([disparity_color,img_ai])
+        cv2.imshow('color',color_merge)
+        cv2.imshow('object matching',stereo_merge)
+        # file_name = os.path.join(path_name,'depth_'+dataset.file_name)
+        # cv2.imwrite(file_name,color_merge)
+        file_name = os.path.join(path_name,'matching_'+dataset.file_name)
+        cv2.imwrite(file_name,stereo_merge)
         if cv2.waitKey(1) == ord('q'):
             break
-    # sm_model.write_file(path_name)
     time.sleep(2)
 
 
@@ -136,6 +150,7 @@ if __name__ == '__main__':
     parser.add_argument("--sm_pft", help="Stereo matching PreFilterType", type=int, default=1)    
     parser.add_argument("--sm_sws", help="Stereo matching SpeckleWindowSize", type=int, default=50)  
     parser.add_argument("--sm_sr", help="Stereo matching SpeckleRange", type=int, default=2)    
+    parser.add_argument("--sm_d12md", help="Stereo matching Disp12MaxDiff", type=int, default=1)    
     parser.add_argument("--score", help="inference score threshold", type=float, default=0)
     parser.add_argument("--fps", help="The webcam frequency", type=int, default=1)
     parser.add_argument("--cam_type", help="0: OV9714, 1: AR0135 1280X720; 2: AR0135 1280X960; 3:AR0135 416X416; 4:AR0135 640X640; 5:AR0135 640X480; 6:MIDDLEBURY 416X360", type=int, default=5)

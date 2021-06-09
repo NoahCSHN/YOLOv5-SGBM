@@ -299,3 +299,39 @@ class camera_mode:
         else:
             self.mode=calib_type.MIDDLEBURY_416
             self.size=(1280,960)
+
+def matching_points_gen(disparity,img_left,img_right,left_points=[],padding=[]):
+    """
+    @description  : get the left image points and draw a line between the original point in the image_left and matching point in the image_right
+    ---------
+    @param  : disparity: type matrix, the disparity map of the image_left and image_right
+    @param  : image_left: type matrix, the raw image from the left camera
+    @param  : image_right: type matrix, the raw image from the right camera
+    @param  : left_points: type list, the point in the image_left
+    -------
+    @Returns  : the image with matching points line in it
+    -------
+    """
+    merge = cv2.hconcat([img_left,img_right])
+    if left_points == []:
+        return merge
+    
+    # %% 加点
+    raw_points = []
+    for i in range(int(len(left_points)/2)):
+        add_point = [int((left_points[2*i][0]+left_points[2*i+1][0])/2),int((left_points[2*i][1]+left_points[2*i+1][1])/2)]
+        raw_points.append(left_points[2*i])
+        raw_points.append(add_point)
+        raw_points.append(left_points[2*i+1])
+
+    # %% 划线
+    for point in raw_points:
+        # print(padding[0])
+        first_matching_point = [point[1]-1+416-padding[0],point[0]-1]
+        first_point = [point[1]-1-padding[0],point[0]-1]
+        cv2.line(merge,first_point,first_matching_point,color=(0,255,0),thickness=1,lineType=cv2.LINE_8)    
+        sec_matching_point = [int(point[1]-1+416-disparity[point[1]-1,point[0]-1])-padding[0],point[0]-1]
+        sec_point = [point[1]-1+416-padding[0],point[0]-1]
+        cv2.line(merge,sec_point,sec_matching_point,color=(0,255,0),thickness=2,lineType=cv2.LINE_8)    
+    return merge
+    
