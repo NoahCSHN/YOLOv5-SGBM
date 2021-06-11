@@ -146,12 +146,12 @@ def object_matching(ai_model,sm_model,camera_config,dataset,ratio,imgsz,fps,debu
             raw_coords = preds[3]
         index = 0
         for label,score,box,raw_box in zip(labels,scores,coords,raw_coords):
-            txt_path = confirm_dir(args.save_path,'txt')
-            with open(os.path.join(txt_path,str(dataset.count)+'.txt'),'a+') as f:
-                        line = '['+str(raw_box[0])+','+str(raw_box[1])+']'+'\n'
-                        f.write(line)
-                        line = '['+str(raw_box[2])+','+str(raw_box[3])+']'+'\n'
-                        f.write(line)
+            # txt_path = confirm_dir(args.save_path,'txt')
+            # with open(os.path.join(txt_path,str(dataset.count)+'.txt'),'a+') as f:
+            #             line = '['+str(raw_box[0])+','+str(raw_box[1])+']'+'\n'
+            #             f.write(line)
+            #             line = '['+str(raw_box[2])+','+str(raw_box[3])+']'+'\n'
+            #             f.write(line)
             if score >= args.score:
                 pred = []
                 temp_dis = disparity_centre(raw_box, ratio, disparity, color_3d, camera_config.focal_length, camera_config.baseline, camera_config.pixel_size, args.sm_mindi)
