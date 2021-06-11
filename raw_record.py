@@ -12,28 +12,31 @@ import cv2
 import numpy as np
 import matplotlib.pyplot as plt 
 from threading import Thread
-# from utils.rknn_detect_yolov5 import  RKNNDetector,plot_one_box
 from utils.img_preprocess import Image_Rectification
 from utils.Stereo_Application import Stereo_Matching,disparity_centre
 from utils.dataset import DATASET_NAMES,loadfiles,loadcam
 from utils.stereoconfig import stereoCamera
 from utils.general import confirm_dir,timethis,timeblock,socket_client,calib_type,camera_mode
 
+
 #%%
 def main():
     dataset = loadcam(pipe=args.source,cam_freq=args.fps,img_size=args.img_size,save_path=args.save_path,debug=args.debug,cam_mode=args.cam_type)
     file_path = confirm_dir(args.save_path,'raw_video')
+    txt_path = confirm_dir(args.save_path,'txt')
     file_name = os.path.join(file_path,'raw_video.avi')
     fourcc = 'mp4v'  # output video codec
     vid_writer = cv2.VideoWriter(file_name,cv2.VideoWriter_fourcc(*fourcc), dataset.fps, (2560, 960))
-    for _,img_left,img_right,_,TimeStamp,_ in dataset:
-        with timeblock('RPOCESS'):
-            frame = cv2.hconcat([img_left,img_right])
-            # cv2.imshow('test',frame)
-            # if cv2.waitKey(1) == ord('q'):
-            #     break
-            vid_writer.write(frame)
-        
+    with open(os.path.join(txt_path,'timestamp.txt'),'w') as f:
+        for _,img_left,img_right,_,TimeStamp,_ in dataset:
+            with timeblock('RPOCESS'):
+                frame = cv2.hconcat([img_left,img_right])
+                # cv2.imshow('test',frame)
+                if cv2.waitKey(1) == ord('q'):
+                    break
+                vid_writer.write(frame)
+                line = str(dataset.count)+'('+str(dataset.frame)+')'+':'+str(TimeStamp)+'\n'
+                f.write(line)
 
 
 #%% input port
