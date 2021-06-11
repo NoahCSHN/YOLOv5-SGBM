@@ -222,7 +222,8 @@ class loadcam:
         self.new_video('test.avi')
         self.mode = 'webcam'
         self.count = -1
-        self.frame = 0        
+        self.frame = 0
+        self.valid = False
         self.thread = Thread(target=self._update,args=[],daemon=True)
         self.thread.start()
     
@@ -232,6 +233,7 @@ class loadcam:
             # Read frame
             if self.pipe in [0,1,2,3,4,5]:  # local camera
                 ret_val, img0 = self.cap.read()
+                self.valid = True
                 # img0 = cv2.flip(img0, 1)  # flip left-right
             else:  # IP camera
                 n = 0
@@ -243,7 +245,7 @@ class loadcam:
                         if ret_val:
                             break
             assert ret_val, 'Camera Error %d'%self.pipe #cp3.5
-            TimeStamp = time.time()-0.08  #cv2.cap.read() average latency is 80ms
+            TimeStamp = time.time()-0.12  #cv2.cap.read() average latency is 120ms
             self.pipeline.put(TimeStamp,img0)
             # self.queue.put((TimeStamp,imgl,imgr))
 
@@ -256,10 +258,10 @@ class loadcam:
         if runtime < 1/self.cam_freq:
             time.sleep(round(1/self.cam_freq-runtime,3))        
         while True:
-            # TimeStamp, imgl, imgr = self.queue.get()
-            TimeStamp,img0 = self.pipeline.get()
-            if TimeStamp != []:
+            if self.valid:
+                self.valid = False
                 break
+        TimeStamp,img0 = self.pipeline.get()
         # print('========================= webcam %d ======================='%self.frame,end='\r') #cp3.5    
         TimeStamp = str(time.time()).split('.')
         if len(TimeStamp[1])<9:
