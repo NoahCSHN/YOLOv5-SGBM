@@ -133,7 +133,8 @@ def object_matching(ai_model,sm_model,camera_config,dataset,ratio,imgsz,fps,debu
         sm_t.join()
         #%%%% TODO: 将一张图片的预测框逐条分开，并且还原到原始图像尺寸
         disparity,color_3d = disarity_queue.get()
-        color_3d = color_3d[:,:,2]
+        # color_depth = color_3d[:,:,2]
+        # color_xy = color_3d[:,:,:2]
         preds = pred_queue.get()
         labels = []
         coords = []
@@ -154,20 +155,20 @@ def object_matching(ai_model,sm_model,camera_config,dataset,ratio,imgsz,fps,debu
             #             f.write(line)
             if score >= args.score:
                 pred = []
-                temp_dis = disparity_centre(raw_box, ratio, disparity, color_3d, camera_config.focal_length, camera_config.baseline, camera_config.pixel_size, args.sm_mindi)
+                temp_dis = disparity_centre(raw_box, ratio, disparity, color_3d[:,:,2], camera_config.focal_length, camera_config.baseline, camera_config.pixel_size, args.sm_mindi)
                 if (temp_dis >= args.out_range[0]*1000) & (temp_dis <= args.out_range[1]*1000):
-                    # distance.append([label,\
-                    #     float((raw_box[0]-v)*temp_dis/fx),\
-                    #     float((raw_box[3]-u)*temp_dis/fy),\
-                    #     float((raw_box[2]-v)*temp_dis/fx),\
-                    #     float((raw_box[3]-u)*temp_dis/fy),\
-                    #     float(temp_dis)]) # two bottom corners and distance to focal point
                     distance.append([label,\
-                        float(color_3d[raw_box[0],raw_box[0]-1]),\
-                        float(color_3d[raw_box[0],raw_box[3]]),\
-                        float(color_3d[raw_box[0],raw_box[2]-1]),\
-                        float(color_3d[raw_box[0],raw_box[3]]),\
+                        float((raw_box[0]-v)*temp_dis/fx),\
+                        float((raw_box[3]-u)*temp_dis/fy),\
+                        float((raw_box[2]-v)*temp_dis/fx),\
+                        float((raw_box[3]-u)*temp_dis/fy),\
                         float(temp_dis)]) # two bottom corners and distance to focal point
+                    # distance.append([label,\
+                    #     float(color_3d[raw_box[3]-1,raw_box[0]-1,0]),\
+                    #     float(color_3d[raw_box[3]-1,raw_box[0]-1,1]),\
+                    #     float(color_3d[raw_box[3]-1,raw_box[2]-1,0]),\
+                    #     float(color_3d[raw_box[3]-1,raw_box[2]-1,1]),\
+                    #     float(temp_dis)]) # two bottom corners and distance to focal point
 
             # %%%% TODO: 将最终深度结果画到图像里
                 xyxy = [raw_box[0],raw_box[1],raw_box[2],raw_box[3]]
@@ -251,7 +252,7 @@ if __name__ == '__main__':
     parser.add_argument("--img_size", help="The data size for model input", nargs='+', type=int, default=[416,416])
     parser.add_argument("--tcp_port", help="tcp port", type=int, default=9191)
     parser.add_argument("--tcp_ip", help="tcp ip", type=str, default='192.168.3.181')
-    parser.add_argument("--out_range", help="The data size for model input", nargs='+', type=float, default=[0.5,1])
+    parser.add_argument("--out_range", help="The data size for model input", nargs='+', type=float, default=[0.3,1])
     parser.add_argument("--sm_lambda", help="Stereo matching post filter parameter lambda", type=float, default=8000)
     parser.add_argument("--sm_sigma", help="Stereo matching post filter parameter sigmacolor", type=float, default=2.0)
     parser.add_argument("--sm_UniRa", help="Stereo matching post filter parameter UniquenessRatio", type=int, default=5)
