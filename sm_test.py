@@ -120,9 +120,11 @@ def sm_run():
         color_merge = cv2.hconcat([disparity_color,img_ai])
         cv2.imshow('color',color_merge)
         cv2.imshow('object matching',stereo_merge)
-        # file_name = os.path.join(path_name,'depth_'+dataset.file_name)
-        # cv2.imwrite(file_name,color_merge)
-        file_name = os.path.join(path_name,'matching_'+dataset.file_name)
+        depth_path = confirm_dir(path_name,'depth')
+        file_name = os.path.join(depth_path,dataset.file_name)
+        cv2.imwrite(file_name,color_merge)
+        matching_path = confirm_dir(path_name,'matching')
+        file_name = os.path.join(matching_path,dataset.file_name)
         cv2.imwrite(file_name,stereo_merge)
         if cv2.waitKey(1) == ord('q'):
             break
