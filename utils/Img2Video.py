@@ -108,6 +108,7 @@ class loadfiles:
         else:
             # Read image
             self.count += 1
+            self.cap = None
             img0 = cv2.imread(path)  # BGR
             assert img0 is not None, 'Image Not Found ' + path
             print('========================new image========================')
@@ -131,18 +132,21 @@ class loadfiles:
         fourcc = 'mp4v'  # output video codec
         w = int(self.cap.get(cv2.CAP_PROP_FRAME_WIDTH)/2)
         h = int(self.cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-        self.writer = cv2.VideoWriter(save_path, cv2.VideoWriter_fourcc(*fourcc), 2, (1280, 960))
+        self.writer = cv2.VideoWriter(save_path, cv2.VideoWriter_fourcc(*fourcc), 1, (2560, 960))
         self.nframes = int(self.cap.get(cv2.CAP_PROP_FRAME_COUNT))
 
     def __len__(self):
         return self.nf  # number of files
 
 if __name__ == '__main__':
-    dataset = loadfiles(path='/home/bynav/RK3399/AI_SGBM/runs/detect/test/raw_video')
-    save_path = '/home/bynav/RK3399/AI_SGBM/runs/detect/test/raw_image'
+    dataset = loadfiles(path='/home/bynav/RK3399/AI_SGBM/runs/detect/test/roof/20210619/stereoSGBM_filter_True_8000_2.0_5_43_-5_9_10_63_100_2_1_3/depth')
+    save_path = '/home/bynav/RK3399/AI_SGBM/runs/detect/test/roof/20210619/stereoSGBM_filter_True_8000_2.0_5_43_-5_9_10_63_100_2_1_3'
+    fourcc = 'mp4v'
+    save_path = os.path.join(save_path,'test.avi')
+    video_writer = cv2.VideoWriter(save_path, cv2.VideoWriter_fourcc(*fourcc), 10, (832, 312))
     for _,img,_ in dataset:
         if dataset.mode == 'image':
-            dataset.writer.write(img)
+            video_writer.write(img)
             cv2.imshow('Test',img)
             if cv2.waitKey(1) == ord('q'):
                 break
