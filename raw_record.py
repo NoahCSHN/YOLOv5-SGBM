@@ -7,6 +7,7 @@
 @version      :1.0
 '''
 import os,logging,sys,argparse,time,math,queue
+from datetime import datetime
 
 import cv2
 import numpy as np
@@ -23,11 +24,12 @@ from utils.general import confirm_dir,timethis,timeblock,socket_client,calib_typ
 def main():
     dataset = loadcam(pipe=args.source,cam_freq=args.fps,img_size=args.img_size,save_path=args.save_path,debug=args.debug,cam_mode=args.cam_type)
     file_path = confirm_dir(args.save_path,'raw_video')
-    txt_path = confirm_dir(args.save_path,'txt')
+    file_path = confirm_dir(file_path,datetime.now().strftime("%Y%m%d%H%M%S"))
+    # txt_path = confirm_dir(args.save_path,'txt')
     file_name = os.path.join(file_path,'raw_video.avi')
     fourcc = 'mp4v'  # output video codec
     vid_writer = cv2.VideoWriter(file_name,cv2.VideoWriter_fourcc(*fourcc), dataset.fps, (2560, 960))
-    with open(os.path.join(txt_path,'timestamp.txt'),'w') as f:
+    with open(os.path.join(file_path,'timestamp.txt'),'w') as f:
         for _,img_left,img_right,_,TimeStamp,_ in dataset:
             with timeblock('RPOCESS'):
                 frame = cv2.hconcat([img_left,img_right])
