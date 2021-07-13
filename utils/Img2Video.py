@@ -103,7 +103,7 @@ class loadfiles:
                     ret_val, img0 = self.cap.read()
 
             self.frame += 1
-            print('video %d/%d (%d/%d) %s: '%(self.count + 1,self.nf,self.frame,self.nframes,path), end='') #cp3.5
+            print('video %d/%d (%d/%d) %s: '%(self.count + 1,self.nf,self.frame,self.nframes,path), end='\n') #cp3.5
 
         else:
             # Read image
@@ -139,11 +139,16 @@ class loadfiles:
         return self.nf  # number of files
 
 if __name__ == '__main__':
-    dataset = loadfiles(path='/home/bynav/RK3399/AI_SGBM/runs/detect/test/roof/20210619/stereoSGBM_filter_True_8000_2.0_5_43_-5_9_10_63_100_2_1_3/depth')
-    save_path = '/home/bynav/RK3399/AI_SGBM/runs/detect/test/roof/20210619/stereoSGBM_filter_True_8000_2.0_5_43_-5_9_10_63_100_2_1_3'
+    # %%
+    dataset = loadfiles(path='/home/bynav/RK3399/AI_SGBM/runs/detect/test/roof/20210712110134')
+    save_path = '/home/bynav/RK3399/AI_SGBM/runs/detect/test/raw_image'
     fourcc = 'mp4v'
-    save_path = os.path.join(save_path,'test.avi')
-    video_writer = cv2.VideoWriter(save_path, cv2.VideoWriter_fourcc(*fourcc), 10, (832, 312))
+    
+    # %%
+    # save_path = os.path.join(save_path,'test.avi')
+    # video_writer = cv2.VideoWriter(save_path, cv2.VideoWriter_fourcc(*fourcc), 10, (832, 312))
+
+    # %%
     for _,img,_ in dataset:
         if dataset.mode == 'image':
             video_writer.write(img)
