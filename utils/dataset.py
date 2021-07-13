@@ -43,17 +43,19 @@ class DATASET_NAMES():
 class pipeline:
     def __init__(self,width=2560,height=960):
         self.timestamp=0.
+        self.frame=0
         # self.image=np.zeros((height,width,3),dtype=np.uint8)
         self.lock=threading.Lock()
         self.lock.acquire()
         self.start=True
 
-    def put(self,timestamp,img0):
+    def put(self,timestamp,img0,frame):
         if self.start != True:
             self.lock.acquire()
         else:
             self.start = False
         self.timestamp = timestamp
+        self.frame=frame
         self.image = img0
         self.lock.release()
     
@@ -61,8 +63,9 @@ class pipeline:
         self.lock.acquire()
         timestamp=self.timestamp
         img0=self.image
+        frame = self.frame
         self.lock.release()
-        return timestamp,img0
+        return timestamp,img0,frame
 
 class loadfiles:
     """
@@ -223,13 +226,14 @@ class loadcam:
         self.mode = 'webcam'
         self.count = -1
         self.frame = 0
+        self.real_frame = 0
         self.valid = False
         self.thread = Thread(target=self._update,args=[],daemon=True)
         self.thread.start()
     
     def _update(self):
         while True:
-            self.frame += 1
+            self.real_frame += 1
             # Read frame
             if self.pipe in [0,1,2,3,4,5]:  # local camera
                 ret_val, img0 = self.cap.read()
@@ -246,7 +250,7 @@ class loadcam:
                             break
             assert ret_val, 'Camera Error %d'%self.pipe #cp3.5
             TimeStamp = time.time()-0.12  #cv2.cap.read() average latency is 120ms
-            self.pipeline.put(TimeStamp,img0)
+            self.pipeline.put(TimeStamp,img0,self.real_frame)
             # self.queue.put((TimeStamp,imgl,imgr))
 
     def __iter__(self):
@@ -261,7 +265,7 @@ class loadcam:
             if self.valid:
                 self.valid = False
                 break
-        TimeStamp,img0 = self.pipeline.get()
+        TimeStamp,img0,self.frame = self.pipeline.get()
         # print('========================= webcam %d ======================='%self.frame,end='\r') #cp3.5    
         TimeStamp = str(time.time()).split('.')
         if len(TimeStamp[1])<9:
