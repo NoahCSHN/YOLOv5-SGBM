@@ -175,6 +175,9 @@ def object_matching(ai_model,sm_model,camera_config,dataset,ratio,imgsz,fps,debu
                 label = str(round(temp_dis,2)) #cp3.5
                 plot_one_box(xyxy, img_ai, label=label, line_thickness=1)             
                 index += 1
+        xyxy = [0,padding[0],1,padding[0]+1]
+        label = str(TimeStamp[0]+'.'+TimeStamp[1])
+        plot_one_box(xyxy, img_ai, label=label, color=[137,205,36], line_thickness=1) 
         # %%% send result
         soc_client.send(img_ai, disparity, padding, distance, frame, imgsz, 0.5, visual)
         # %%% TODO: 保存结果
@@ -200,6 +203,7 @@ def object_matching(ai_model,sm_model,camera_config,dataset,ratio,imgsz,fps,debu
         else:
             print('frame: %s Done. (%.3fs);Process: use (%.3fs)'%(frame,(time.time()-t1),time.time()-t0),end='\r') #cp3.5
         t1=time.time()
+    
 
 #%% main
 def main():
@@ -267,7 +271,7 @@ if __name__ == '__main__':
     parser.add_argument("--sm_sr", help="Stereo matching SpeckleRange", type=int, default=2)    
     parser.add_argument("--sm_d12md", help="Stereo matching Disp12MaxDiff", type=int, default=1)    
     parser.add_argument("--score", help="inference score threshold", type=float, default=0)
-    parser.add_argument("--fps", help="The webcam frequency", type=int, default=1)
+    parser.add_argument("--fps", help="The webcam frequency", type=int, default=4)
     parser.add_argument("--cam_type", help="0: OV9714, 1: AR0135 1280X720; 2: AR0135 1280X960; 3:AR0135 416X416; 4:AR0135 640X640; 5:AR0135 640X480; 6:MIDDLEBURY 416X360", type=int, default=5)
     parser.add_argument("--ratio", help="ratio for distance calculate", type=float, default=0.05)
     parser.add_argument("--device", help="device on which model runs", type=str,default='pc')
