@@ -83,7 +83,7 @@ def LoadData(source='', webcam=False, cam_freq=5, imgsz=(640,640), save_path='',
         config = stereoCamera(mode=cam_mode.mode.value,height=cam_mode.size[1],width=cam_mode.size[0])
     return dataset,config
 
-# %% obejct detection and matching
+# %% 
 def object_matching(ai_model,sm_model,camera_config,dataset,ratio,imgsz,fps,debug,UMat,soc_client,visual,cam_mode,filter):
     """
     @description  : a combination of data iteration, object predict ,stereo matching and data transmission process 
@@ -131,7 +131,10 @@ def object_matching(ai_model,sm_model,camera_config,dataset,ratio,imgsz,fps,debu
         ai_t.start()
         ai_t.join()
         sm_t.join()
-        #%%%% TODO: 将一张图片的预测框逐条分开，并且还原到原始图像尺寸
+        # %% 
+        """ 
+        TODO: 将一张图片的预测框逐条分开，并且还原到原始图像尺寸
+        """
         disparity,color_3d = disarity_queue.get()
         # color_depth = color_3d[:,:,2]
         # color_xy = color_3d[:,:,:2]
@@ -170,7 +173,10 @@ def object_matching(ai_model,sm_model,camera_config,dataset,ratio,imgsz,fps,debu
                     #     float(color_3d[raw_box[3]-1,raw_box[2]-1,1]),\
                     #     float(temp_dis)]) # two bottom corners and distance to focal point
 
-            # %%%% TODO: 将最终深度结果画到图像里
+                # %%
+                """ 
+                TODO: 将最终深度结果画到图像里
+                """
                 xyxy = [raw_box[0],raw_box[1],raw_box[2],raw_box[3]]
                 box_label = str(round(temp_dis,2)) #cp3.5
                 plot_one_box(xyxy, img_ai, label=box_label, color=DATASET_NAMES.name_color[DATASET_NAMES.coco_split_names.index(label)], line_thickness=1)             
@@ -180,24 +186,38 @@ def object_matching(ai_model,sm_model,camera_config,dataset,ratio,imgsz,fps,debu
         plot_one_box(xyxy, img_ai, label=box_label, color=[137,205,36], line_thickness=1) 
         # %%% send result
         soc_client.send(img_ai, disparity, padding, distance, frame, imgsz, 0.5, visual)
-        # %%% TODO: 保存结果
+        # %%
+        """ 
+        save result to local 
+        """
         # with timeblock('write file'):
         if args.save_result:
+            txt_path = confirm_dir(args.save_path,'txt')
+            # %%
+            """
             if dataset.mode == 'image':
                 file_path = confirm_dir(args.save_path,'images')
                 save_path = os.path.join(file_path,str(dataset.count)+'.bmp')
                 cv2.imwrite(save_path, img_ai)
-                # time.sleep(1)
             elif dataset.mode == 'video' or dataset.mode == 'webcam':
                 file_path = os.path.join(args.save_path,dataset.mode)
                 dataset.get_vid_dir(file_path)
                 dataset.writer.write(img_ai)
-            txt_path = confirm_dir(args.save_path,'txt')
+            # %%
             with open(os.path.join(txt_path,'result.txt'),'w') as f:
                 f.write('-----------------'+real_time+str(frame)+'-----------------\n')
                 for pred in distance[1:]:
                     line = real_time+': '+str(pred[0])+','+str(pred[1])+','+str(pred[2])+','+str(pred[3])+','+str(pred[4])+','+str(pred[5])+'\n'
                     f.write(line)
+            """
+            # %%
+            """ 
+            save timestamp
+            """
+            with open(os.path.join(txt_path,'time_stamp.txt'),'+a') as f:
+                line = str(dataset.count)+'('+str(dataset.frame)+')'+':'+str(TimeStamp)+'-'+str(time.time()-t0)+'\n'
+                f.write(line)
+            # %%
         if dataset.mode == 'webcam':
             print('frame: %s(%s) Done. (%.3fs);Process: use (%.3fs)'%(frame,dataset.frame,(time.time()-t1),time.time()-t0),end='\r') #cp3.5
         else:
