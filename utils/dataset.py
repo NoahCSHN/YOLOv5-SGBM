@@ -261,7 +261,7 @@ class loadcam:
                         if ret_val:
                             break
             assert ret_val, 'Camera Error %d'%self.pipe #cp3.5
-            TimeStamp = time.time()-0.12  #cv2.cap.read() average latency is 120ms
+            TimeStamp = time.time()-0.12-0.35  #cv2.cap.read() average latency is 120ms + 350 ms
             self.pipeline.put(TimeStamp,img0,self.real_frame)
             # self.queue.put((TimeStamp,imgl,imgr))
 
