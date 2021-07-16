@@ -14,30 +14,6 @@ import cv2
 
 img_formats = ['bmp', 'jpg', 'jpeg', 'png', 'tif', 'tiff', 'dng', 'webp']  # acceptable image suffixes
 vid_formats = ['mov', 'avi', 'mp4', 'mpg', 'mpeg', 'm4v', 'wmv', 'mkv']  # acceptable video suffixes
-
-class DATASET_NAMES():
-    """
-    @description  :pre define the object class name for object detection
-    ---------
-    @function  : None
-    -------
-    """
-    
-    voc_names = ['aeroplane', 'bicycle', 'bird', 'boat', 'bottle', 'bus', 'car', 'cat', 'chair', 'cow', 'diningtable', 'dog',
-         'horse', 'motorbike', 'person', 'pottedplant', 'sheep', 'sofa', 'train', 'tvmonitor']
-    coco_names = ['person', 'bicycle', 'car', 'motorcycle', 'airplane', 'bus', 'train', 'truck', 'boat', 'traffic light',
-                    'fire hydrant', 'stop sign', 'parking meter', 'bench', 'bird', 'cat', 'dog', 'horse', 'sheep', 'cow',
-                    'elephant', 'bear', 'zebra', 'giraffe', 'backpack', 'umbrella', 'handbag', 'tie', 'suitcase', 'frisbee',
-                    'skis', 'snowboard', 'sports ball', 'kite', 'baseball bat', 'baseball glove', 'skateboard', 'surfboard',
-                    'tennis racket', 'bottle', 'wine glass', 'cup', 'fork', 'knife', 'spoon', 'bowl', 'banana', 'apple',
-                    'sandwich', 'orange', 'broccoli', 'carrot', 'hot dog', 'pizza', 'donut', 'cake', 'chair', 'couch',
-                    'potted plant', 'bed', 'dining table', 'toilet', 'tv', 'laptop', 'mouse', 'remote', 'keyboard', 'cell phone',
-                    'microwave', 'oven', 'toaster', 'sink', 'refrigerator', 'book', 'clock', 'vase', 'scissors', 'teddy bear',
-                    'hair drier', 'toothbrush']
-    masks_names = ['mask','nomask']
-    voc_split_names = ['bottle','chair','diningtable','person','pottedplant','sofa','tvmonitor']
-    coco_split_names = ['person','sports ball','bottle','cup','chair','potted plant','cell phone', 'book']
-
 class loadfiles:
     """
     @description  : load iamge or video file(s) and create a iterator
@@ -67,7 +43,7 @@ class loadfiles:
 
         self.img_size = img_size
         self.files = images + videos
-        self.vid_file_path = os.path.join(save_path,'video')
+        self.vid_file_path = save_path
         self.nf = ni + nv  # number of files
         self.video_flag = [False] * ni + [True] * nv
         self.mode = 'image'
@@ -140,10 +116,9 @@ class loadfiles:
 
 if __name__ == '__main__':
     # %%
-    dataset = loadfiles(path='/home/bynav/RK3399/AI_SGBM/runs/detect/test/roof/20210712110134')
-    save_path = '/home/bynav/RK3399/AI_SGBM/runs/detect/test/raw_image'
+    save_path = '/home/bynav/0_code/RK3399/AI_SGBM/runs/detect/test/20210716/raw_video/20210716112123'
+    dataset = loadfiles(path='/home/bynav/0_code/RK3399/AI_SGBM/runs/detect/test/20210716/raw_video/',save_path = save_path)
     fourcc = 'mp4v'
-    
     # %%
     # save_path = os.path.join(save_path,'test.avi')
     # video_writer = cv2.VideoWriter(save_path, cv2.VideoWriter_fourcc(*fourcc), 10, (832, 312))
