@@ -8,7 +8,7 @@
 
 '''
 import os,logging,sys,argparse,time,math,queue
-from datetime import date
+from datetime import date,datetime
 
 import cv2
 import numpy as np
@@ -84,7 +84,7 @@ def LoadData(source='', webcam=False, cam_freq=5, imgsz=(640,640), save_path='',
     return dataset,config
 
 # %% 
-def object_matching(ai_model,sm_model,camera_config,dataset,ratio,imgsz,fps,debug,UMat,soc_client,visual,cam_mode,filter):
+def object_matching(ai_model,sm_model,camera_config,dataset,ratio,imgsz,fps,debug,UMat,soc_client,visual,cam_mode,filter, save_path):
     """
     @description  : a combination of data iteration, object predict ,stereo matching and data transmission process 
     ---------
@@ -102,6 +102,7 @@ def object_matching(ai_model,sm_model,camera_config,dataset,ratio,imgsz,fps,debu
         visual: tpye bool, if true send the result image through TCP with coordinates, otherwise, only coordinates
         cam_mode: tpye int, the camera configuration number
         filter: tpye bool, if true, the disparity map will be a dense matrix smoothing by a post WLS filter, otherwise, disparity map is a sparse matrix
+        save_path: str, save path for result
     -------
     @Returns  : None
     -------
@@ -133,7 +134,7 @@ def object_matching(ai_model,sm_model,camera_config,dataset,ratio,imgsz,fps,debu
         sm_t.join()
         # %% 
         """ 
-        TODO: 将一张图片的预测框逐条分开，并且还原到原始图像尺寸
+        将一张图片的预测框逐条分开，并且还原到原始图像尺寸
         """
         disparity,color_3d = disarity_queue.get()
         # color_depth = color_3d[:,:,2]
@@ -150,7 +151,7 @@ def object_matching(ai_model,sm_model,camera_config,dataset,ratio,imgsz,fps,debu
             raw_coords = preds[3]
         index = 0
         for label,score,box,raw_box in zip(labels,scores,coords,raw_coords):
-            # txt_path = confirm_dir(args.save_path,'txt')
+            # txt_path = confirm_dir(save_path,'txt')
             # with open(os.path.join(txt_path,str(dataset.count)+'.txt'),'a+') as f:
             #             line = '['+str(raw_box[0])+','+str(raw_box[1])+']'+'\n'
             #             f.write(line)
@@ -175,7 +176,7 @@ def object_matching(ai_model,sm_model,camera_config,dataset,ratio,imgsz,fps,debu
 
                 # %%
                 """ 
-                TODO: 将最终深度结果画到图像里
+                将最终深度结果画到图像里
                 """
                 xyxy = [raw_box[0],raw_box[1],raw_box[2],raw_box[3]]
                 box_label = str(round(temp_dis,2)) #cp3.5
@@ -192,15 +193,15 @@ def object_matching(ai_model,sm_model,camera_config,dataset,ratio,imgsz,fps,debu
         """
         # with timeblock('write file'):
         if args.save_result:
-            txt_path = confirm_dir(args.save_path,'txt')
+            txt_path = confirm_dir(save_path,'txt')
             # %%
             """
             if dataset.mode == 'image':
-                file_path = confirm_dir(args.save_path,'images')
+                file_path = confirm_dir(save_path,'images')
                 save_path = os.path.join(file_path,str(dataset.count)+'.bmp')
                 cv2.imwrite(save_path, img_ai)
             elif dataset.mode == 'video' or dataset.mode == 'webcam':
-                file_path = os.path.join(args.save_path,dataset.mode)
+                file_path = os.path.join(save_path,dataset.mode)
                 dataset.get_vid_dir(file_path)
                 dataset.writer.write(img_ai)
             # %%
@@ -241,8 +242,12 @@ def main():
     args.source, args.device, args.BM, args.sm_lambda, args.sm_sigma, args.sm_UniRa,\
     args.sm_numdi, args.sm_mindi, args.sm_block, args.sm_tt,\
     args.filter, args.img_size, args.webcam, args.fps, args.ratio, args.debug, args.visual,\
-    args.UMat, args.tcp_port, args.tcp_ip  
-    save_path = confirm_dir(args.save_path,date.today().strftime("%Y%m%d"))
+    args.UMat, args.tcp_port, args.tcp_ip
+    print(datetime.now().strftime("%Y%m%d"))
+    print(datetime.now().strftime("%Y%m%d%H%M%S"))
+    save_path = confirm_dir(args.save_path,datetime.now().strftime("%Y%m%d"))
+    save_path = confirm_dir(save_path,datetime.now().strftime("%Y%m%d%H%M%S"))
+    
     if args.verbose:
         logging.basicConfig(filename=os.path.join(save_path,'log.txt'),
                             filemode='w',
@@ -263,7 +268,7 @@ def main():
     dataset, camera_config = LoadData(source, webcam, fps, imgsz, save_path, debug,cam_mode)
 
     # dataset iteration and model runs
-    object_matching(AI, SM, camera_config, dataset, ratio, imgsz, fps, debug, UMat, soc_client, visual, cam_mode.mode.value, sm_filter)
+    object_matching(AI, SM, camera_config, dataset, ratio, imgsz, fps, debug, UMat, soc_client, visual, cam_mode.mode.value, sm_filter, save_path)
     tt1=time.time()
     print('All Done using (%.2fs)'%(tt1-tt0))
 
