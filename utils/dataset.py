@@ -53,31 +53,29 @@ class DATASET_NAMES():
                   [142, 123, 110],[211, 17, 89],[54, 38, 67]]
 
 class pipeline:
+    """
+    @description  : a data pipeline shared by multiple threads
+    ---------
+    @function  : send images, timestamps and valid signal
+    -------
+    """
     def __init__(self,width=2560,height=960):
         self.timestamp=0.
         self.frame=0
-        # self.image=np.zeros((height,width,3),dtype=np.uint8)
-        self.lock=threading.Lock()
-        self.lock.acquire()
-        self.start=True
+        self.lock = threading.Lock()
 
     def put(self,timestamp,img0,frame):
-        if self.start != True:
-            self.lock.acquire()
-        else:
-            self.start = False
-        self.timestamp = timestamp
-        self.frame=frame
-        self.image = img0
-        self.lock.release()
+        with self.lock:
+            self.timestamp = timestamp
+            self.frame = frame
+            self.image = img0
     
     def get(self):
-        self.lock.acquire()
-        timestamp=self.timestamp
-        img0=self.image
-        frame = self.frame
-        self.lock.release()
-        return timestamp,img0,frame
+        with self.lock:
+            timestamp=self.timestamp
+            img0=self.image
+            frame = self.frame
+            return timestamp,img0,frame
 
 class loadfiles:
     """
@@ -236,7 +234,7 @@ class loadcam:
         self.img_file_path = confirm_dir(save_path,'webimg')
         self.new_video('test.avi')
         self.mode = 'webcam'
-        self.count = -1
+        self.count = 0
         self.frame = 0
         self.real_frame = 0
         self.valid = False
@@ -263,7 +261,6 @@ class loadcam:
             assert ret_val, 'Camera Error %d'%self.pipe #cp3.5
             TimeStamp = time.time()-0.12-0.70  #cv2.cap.read() average latency is 120ms + 700 ms
             self.pipeline.put(TimeStamp,img0,self.real_frame)
-            # self.queue.put((TimeStamp,imgl,imgr))
 
     def __iter__(self):
         return self
@@ -272,7 +269,7 @@ class loadcam:
     def __next__(self):
         runtime = time.time() - self.time
         if runtime < 1/self.cam_freq:
-            time.sleep(round(1/self.cam_freq-runtime,3))        
+            time.sleep(round(1/self.cam_freq-runtime,3))
         while True:
             if self.valid:
                 self.valid = False
@@ -289,7 +286,7 @@ class loadcam:
         if self.debug:
             cv2.imwrite(save_file,img0)
         imgl = img0[:,:w1,:]
-        imgr = img0[:,w1:,:]                   
+        imgr = img0[:,w1:,:]
         self.count += 1
         img_path = 'webcam.jpg'
         self.time = time.time()
@@ -297,7 +294,7 @@ class loadcam:
 
     def get_vid_dir(self,path):
         self.vid_file_path = path
-        
+
     def new_video(self, path):
         if isinstance(self.writer, cv2.VideoWriter):
             self.writer.release()
