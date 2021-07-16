@@ -14,12 +14,12 @@ import cv2
 import numpy as np
 import matplotlib.pyplot as plt 
 from threading import Thread
-from utils.rknn_detect_yolov5 import  RKNNDetector,plot_one_box
+from utils.rknn_detect_yolov5 import  RKNNDetector
 from utils.img_preprocess import Image_Rectification
 from utils.Stereo_Application import Stereo_Matching,disparity_centre,reproject_3dcloud
 from utils.dataset import DATASET_NAMES,loadfiles,loadcam
 from utils.stereoconfig import stereoCamera
-from utils.general import confirm_dir,timethis,timeblock,socket_client,calib_type,camera_mode,matching_points_gen
+from utils.general import confirm_dir,timethis,timeblock,socket_client,calib_type,camera_mode,matching_points_gen,plot_one_box
 
 # %% initial environment
 def platform_init(imgsz=640, tcp_address=('192.168.3.181',9191), save_path=''):

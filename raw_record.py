@@ -17,23 +17,26 @@ from utils.img_preprocess import Image_Rectification
 from utils.Stereo_Application import Stereo_Matching,disparity_centre
 from utils.dataset import DATASET_NAMES,loadfiles,loadcam
 from utils.stereoconfig import stereoCamera
-from utils.general import confirm_dir,timethis,timeblock,socket_client,calib_type,camera_mode
+from utils.general import confirm_dir,timethis,timeblock,socket_client,calib_type,camera_mode,plot_one_box
 
 
 #%%
 def main():
     dataset = loadcam(pipe=args.source,cam_freq=args.fps,img_size=args.img_size,save_path=args.save_path,debug=args.debug,cam_mode=args.cam_type)
-    file_path = confirm_dir(args.save_path,'raw_video')
-    file_path = confirm_dir(file_path,datetime.now().strftime("%Y%m%d%H%M%S"))
-    # txt_path = confirm_dir(args.save_path,'txt')
-    file_name = os.path.join(file_path,'raw_video.avi')
+    file_path = confirm_dir(args.save_path,datetime.now().strftime("%Y%m%d"))
+    # file_path = confirm_dir(file_path,datetime.now().strftime("%Y%m%d%H%M%S"))
+    file_path = confirm_dir(file_path,'raw_video')
+    file_name = os.path.join(file_path,datetime.now().strftime("%Y%m%d%H%M%S")+'.avi')
     fourcc = 'mp4v'  # output video codec
     vid_writer = cv2.VideoWriter(file_name,cv2.VideoWriter_fourcc(*fourcc), dataset.fps, (2560, 960))
     with open(os.path.join(file_path,'timestamp.txt'),'w') as f:
         for _,img_left,img_right,_,TimeStamp,_ in dataset:
             with timeblock('RPOCESS'):
                 frame = cv2.hconcat([img_left,img_right])
-                # cv2.imshow('test',frame)
+                xyxy = [0,0,1,1]
+                box_label = str(TimeStamp[0]+'.'+TimeStamp[1])
+                plot_one_box(xyxy, frame, label=box_label, color=[137,205,36], line_thickness=1) 
+                cv2.imshow('test',frame)
                 if cv2.waitKey(1) == ord('q'):
                     break
                 vid_writer.write(frame)
