@@ -151,12 +151,6 @@ def object_matching(ai_model,sm_model,camera_config,dataset,ratio,imgsz,fps,debu
             raw_coords = preds[3]
         index = 0
         for label,score,box,raw_box in zip(labels,scores,coords,raw_coords):
-            # txt_path = confirm_dir(save_path,'txt')
-            # with open(os.path.join(txt_path,str(dataset.count)+'.txt'),'a+') as f:
-            #             line = '['+str(raw_box[0])+','+str(raw_box[1])+']'+'\n'
-            #             f.write(line)
-            #             line = '['+str(raw_box[2])+','+str(raw_box[3])+']'+'\n'
-            #             f.write(line)
             if score >= args.score:
                 pred = []
                 temp_dis = disparity_centre(raw_box, ratio, disparity, color_3d[:,:,2], camera_config.focal_length, camera_config.baseline, camera_config.pixel_size, args.sm_mindi)
@@ -211,6 +205,14 @@ def object_matching(ai_model,sm_model,camera_config,dataset,ratio,imgsz,fps,debu
                     line = real_time+': '+str(pred[0])+','+str(pred[1])+','+str(pred[2])+','+str(pred[3])+','+str(pred[4])+','+str(pred[5])+'\n'
                     f.write(line)
             """
+            """ 
+            save boxes
+            """
+            # %%
+            with open(os.path.join(txt_path,str(dataset.count)+'.txt'),'a+') as f:
+                for raw_box in raw_coords:
+                    line = '['+str(raw_box[0])+','+str(raw_box[1])+']'+','+'['+str(raw_box[2])+','+str(raw_box[3])+']'+'\n'
+                    f.write(line)
             # %%
             """ 
             save timestamp
@@ -243,8 +245,6 @@ def main():
     args.sm_numdi, args.sm_mindi, args.sm_block, args.sm_tt,\
     args.filter, args.img_size, args.webcam, args.fps, args.ratio, args.debug, args.visual,\
     args.UMat, args.tcp_port, args.tcp_ip
-    print(datetime.now().strftime("%Y%m%d"))
-    print(datetime.now().strftime("%Y%m%d%H%M%S"))
     save_path = confirm_dir(args.save_path,datetime.now().strftime("%Y%m%d"))
     save_path = confirm_dir(save_path,datetime.now().strftime("%Y%m%d%H%M%S"))
     
