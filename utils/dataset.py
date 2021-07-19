@@ -259,7 +259,7 @@ class loadcam:
                         if ret_val:
                             break
             assert ret_val, 'Camera Error %d'%self.pipe #cp3.5
-            TimeStamp = time.time()-0.12-0.70  #cv2.cap.read() average latency is 120ms + 700 ms
+            TimeStamp = time.time() - 0.35  #cv2.cap.read() average latency is 350ms
             self.pipeline.put(TimeStamp,img0,self.real_frame)
 
     def __iter__(self):
@@ -276,14 +276,14 @@ class loadcam:
                 break
         TimeStamp,img0,self.frame = self.pipeline.get()
         # print('========================= webcam %d ======================='%self.frame,end='\r') #cp3.5    
-        TimeStamp = str(time.time()).split('.')
+        TimeStamp = str(TimeStamp).split('.')
         if len(TimeStamp[1])<9:
             for i in range(9-len(TimeStamp[1])):
                 TimeStamp[1] += '0'         
         w = img0.shape[1]
         w1 = int(w/2)
-        save_file = os.path.join(self.img_file_path,(str(self.frame)+'.bmp'))
         if self.debug:
+            save_file = os.path.join(self.img_file_path,(str(self.frame)+'.bmp'))
             cv2.imwrite(save_file,img0)
         imgl = img0[:,:w1,:]
         imgr = img0[:,w1:,:]
