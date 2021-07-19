@@ -62,6 +62,7 @@ class pipeline:
     def __init__(self,width=2560,height=960):
         self.timestamp=0.
         self.frame=0
+        self.valid = False
         self.lock = threading.Lock()
 
     def put(self,timestamp,img0,frame):
@@ -69,13 +70,16 @@ class pipeline:
             self.timestamp = timestamp
             self.frame = frame
             self.image = img0
+            self.valid = True
     
     def get(self):
         with self.lock:
             timestamp=self.timestamp
             img0=self.image
             frame = self.frame
-            return timestamp,img0,frame
+            valid = self.valid
+            self.valid = False
+            return timestamp,img0,frame,valid
 
 class loadfiles:
     """
@@ -247,7 +251,7 @@ class loadcam:
             # Read frame
             if self.pipe in [0,1,2,3,4,5]:  # local camera
                 ret_val, img0 = self.cap.read()
-                self.valid = True
+                # self.valid = True
                 # img0 = cv2.flip(img0, 1)  # flip left-right
             else:  # IP camera
                 n = 0
@@ -271,10 +275,9 @@ class loadcam:
         if runtime < 1/self.cam_freq:
             time.sleep(round(1/self.cam_freq-runtime,3))
         while True:
+            TimeStamp,img0,self.frame,self.valid = self.pipeline.get()
             if self.valid:
-                self.valid = False
                 break
-        TimeStamp,img0,self.frame = self.pipeline.get()
         # print('========================= webcam %d ======================='%self.frame,end='\r') #cp3.5    
         TimeStamp = str(TimeStamp).split('.')
         if len(TimeStamp[1])<9:
