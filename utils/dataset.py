@@ -242,6 +242,7 @@ class loadcam:
         self.frame = 0
         self.real_frame = 0
         self.valid = False
+        self.start = False
         self.thread = Thread(target=self._update,args=[],daemon=True)
         self.thread.start()
     
@@ -263,8 +264,9 @@ class loadcam:
                         if ret_val:
                             break
             assert ret_val, 'Camera Error %d'%self.pipe #cp3.5
-            TimeStamp = time.time() - 0.35  #cv2.cap.read() average latency is 350ms
+            TimeStamp = time.time() - 0.29  #cv2.cap.read() average latency is 290ms
             self.pipeline.put(TimeStamp,img0,self.real_frame)
+            self.start = True
 
     def __iter__(self):
         return self
@@ -275,9 +277,10 @@ class loadcam:
         if runtime < 1/self.cam_freq:
             time.sleep(round(1/self.cam_freq-runtime,3))
         while True:
-            TimeStamp,img0,self.frame,self.valid = self.pipeline.get()
-            if self.valid:
-                break
+            if self.start:
+                TimeStamp,img0,self.frame,self.valid = self.pipeline.get()
+                if self.valid:
+                    break
         # print('========================= webcam %d ======================='%self.frame,end='\r') #cp3.5    
         TimeStamp = str(TimeStamp).split('.')
         if len(TimeStamp[1])<9:
