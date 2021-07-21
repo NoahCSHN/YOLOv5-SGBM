@@ -177,7 +177,7 @@ def object_matching(ai_model,sm_model,camera_config,dataset,ratio,imgsz,fps,debu
                 plot_one_box(xyxy, img_ai, label=box_label, color=DATASET_NAMES.name_color[DATASET_NAMES.coco_split_names.index(label)], line_thickness=1)             
                 index += 1
         xyxy = [0,padding[0],1,padding[0]+1]
-        box_label = str(TimeStamp[0]+'.'+TimeStamp[1])
+        box_label = str(dataset.count)+'('+str(dataset.frame)+')'+str(TimeStamp[0]+'.'+TimeStamp[1])
         plot_one_box(xyxy, img_ai, label=box_label, color=[137,205,36], line_thickness=1) 
         # %%% send result
         soc_client.send(img_ai, disparity, padding, distance, frame, imgsz, 0.5, visual)
