@@ -41,7 +41,7 @@ def main():
                 if cv2.waitKey(1) == ord('q'):
                     break
                 vid_writer.write(frame)
-                line = str(dataset.count)+'('+str(dataset.frame)+')'+':'+str(TimeStamp)+'\n'
+                line = '$TIMESTAMP,'+str(dataset.count)+'('+str(dataset.frame)+')'+':'+str(TimeStamp)+'*FC'+'\n'
                 f.write(line)
 
 

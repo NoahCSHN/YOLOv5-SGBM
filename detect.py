@@ -218,7 +218,7 @@ def object_matching(ai_model,sm_model,camera_config,dataset,ratio,imgsz,fps,debu
             save timestamp
             """
             with open(os.path.join(txt_path,'time_stamp.txt'),'+a') as f:
-                line = str(dataset.count)+'('+str(dataset.frame)+')'+':'+str(TimeStamp)+'-'+str(time.time()-t0)+'\n'
+                line = '$TIMESTAMP,'+str(dataset.count)+'('+str(dataset.frame)+')'+':'+str(TimeStamp)+'-'+str(time.time()-t0)+'\n'
                 f.write(line)
             # %%
         if dataset.mode == 'webcam':
