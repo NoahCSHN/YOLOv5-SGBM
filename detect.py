@@ -209,10 +209,10 @@ def object_matching(ai_model,sm_model,camera_config,dataset,ratio,imgsz,fps,debu
             save boxes
             """
             # %%
-            with open(os.path.join(txt_path,str(dataset.count)+'.txt'),'a+') as f:
-                for raw_box in raw_coords:
-                    line = '['+str(raw_box[0])+','+str(raw_box[1])+']'+','+'['+str(raw_box[2])+','+str(raw_box[3])+']'+'\n'
-                    f.write(line)
+            # with open(os.path.join(txt_path,str(dataset.count)+'.txt'),'a+') as f:
+            #     for raw_box in raw_coords:
+            #         line = '['+str(raw_box[0])+','+str(raw_box[1])+']'+','+'['+str(raw_box[2])+','+str(raw_box[3])+']'+'\n'
+            #         f.write(line)
             # %%
             """ 
             save timestamp
