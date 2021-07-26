@@ -116,8 +116,8 @@ class loadfiles:
 
 if __name__ == '__main__':
     # %%
-    save_path = '/home/bynav/0_code/RK3399/AI_SGBM/runs/detect/test/20210716/raw_video/20210716112123'
-    dataset = loadfiles(path='/home/bynav/0_code/RK3399/AI_SGBM/runs/detect/test/20210716/raw_video/',save_path = save_path)
+    save_path = '/home/bynav/0_code/RK3399/AI_SGBM/runs/detect/test/20210721/raw_video/20210721104034'
+    dataset = loadfiles(path='/home/bynav/0_code/RK3399/AI_SGBM/runs/detect/test/20210721/raw_video',save_path = save_path)
     fourcc = 'mp4v'
     # %%
     # save_path = os.path.join(save_path,'test.avi')
