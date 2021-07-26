@@ -249,6 +249,7 @@ class loadcam:
     def _update(self):
         while True:
             self.real_frame += 1
+            TimeStamp = time.time()-0.044  #cv2.cap.read() average latency is 290ms
             # Read frame
             if self.pipe in [0,1,2,3,4,5]:  # local camera
                 ret_val, img0 = self.cap.read()
@@ -264,7 +265,6 @@ class loadcam:
                         if ret_val:
                             break
             assert ret_val, 'Camera Error %d'%self.pipe #cp3.5
-            TimeStamp = time.time() - 0.29  #cv2.cap.read() average latency is 290ms
             self.pipeline.put(TimeStamp,img0,self.real_frame)
             self.start = True
 
