@@ -1,5 +1,5 @@
 #!/bin/bash
-cd ~/ros_ws/src/avoid_model_port/scripts
+cd ~/ros/src/avoid_model/scripts
 
 source ~/venv/torch/bin/activate
 
