@@ -5,11 +5,8 @@ function: Load data to input to the model
 '''
 import os,sys,logging,glob,time,queue
 from pathlib import Path
-from itertools import repeat
-from multiprocessing.pool import ThreadPool
 from threading import Thread
 import threading
-import numpy as np
 from utils.general import confirm_dir,timethis,calib_type
 
 import cv2
@@ -254,8 +251,6 @@ class loadcam:
             # Read frame
             if self.pipe in [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14]:  # local camera
                 ret_val, img0 = self.cap.read()
-                # self.real_frame = self.cap.get(cv2.CAP_FRAME_COUNT)
-                # TimeStamp = self.cap.get(cv2.CAP_PROP_POS_MSEC)
                 # self.valid = True
                 # img0 = cv2.flip(img0, 1)  # flip left-right
             else:  # IP camera
