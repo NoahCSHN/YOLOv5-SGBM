@@ -252,8 +252,10 @@ class loadcam:
             self.real_frame += 1
             TimeStamp = time.time()-0.044  #cv2.cap.read() average latency is 290ms
             # Read frame
-            if self.pipe in [0,1,2,3,4,5]:  # local camera
+            if self.pipe in [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14]:  # local camera
                 ret_val, img0 = self.cap.read()
+                # self.real_frame = self.cap.get(cv2.CAP_FRAME_COUNT)
+                # TimeStamp = self.cap.get(cv2.CAP_PROP_POS_MSEC)
                 # self.valid = True
                 # img0 = cv2.flip(img0, 1)  # flip left-right
             else:  # IP camera
