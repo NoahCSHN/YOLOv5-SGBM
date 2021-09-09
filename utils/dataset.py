@@ -228,6 +228,7 @@ class loadcam:
             self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT,720) #OV9714
         self.pipeline = pipeline(int(self.cap.get(cv2.CAP_PROP_FRAME_WIDTH)),int(self.cap.get(cv2.CAP_PROP_FRAME_HEIGHT)))
         self.cam_freq = cam_freq
+        self.fps = self.cap.set(cv2.CAP_PROP_FPS,cam_freq)
         self.fps = self.cap.get(cv2.CAP_PROP_FPS)
         self.size = (self.cap.get(cv2.CAP_PROP_FRAME_WIDTH),self.cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
         # self.queue = queue.LifoQueue(maxsize=self.fps)
