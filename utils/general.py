@@ -1,8 +1,12 @@
 '''
-Author  : Noah
-Date    : 20210408
-function: common-basic function database
+Author: Noah
+Date: 2021-07-31 17:37:43
+LastEditTime: 2021-09-09 16:35:35
+LastEditors: Please set LastEditors
+Description: common-basic function database
+FilePath: /AI_SGBM/utils/general.py
 '''
+
 import os,sys,logging,cv2,time,functools,socket
 from pathlib import Path
 import numpy as np

@@ -1,14 +1,15 @@
 #!/usr/bin/env python
 # -*- encoding: utf-8 -*-
 '''
-@Description: main function for YOLOv5 + SGBM model running on RK3399pro platform 
-@Date     :2021/04/23 19:56:56
-@Author      :Noah
-@version      :version : 21052005
-
+Author: your name
+Date: 2021-07-31 17:37:43
+LastEditTime: 2021-09-09 15:12:56
+LastEditors: Please set LastEditors
+Description: main function for YOLOv5 + SGBM model running on RK3399pro platform 
+FilePath: /AI_SGBM/detect.py
 '''
 import os,logging,sys,argparse,time,math,queue
-from datetime import date,datetime
+from datetime import datetime
 
 import cv2
 import numpy as np

@@ -1,7 +1,10 @@
 '''
-Author  : Noah
-Date    : 20210408
-function: Load data to input to the model
+Author: Noah
+Date: 2021-07-31 17:37:43
+LastEditTime: 2021-09-09 16:35:09
+LastEditors: Please set LastEditors
+Description: Load data to input to the model
+FilePath: /AI_SGBM/utils/dataset.py
 '''
 import os,sys,logging,glob,time,queue
 from pathlib import Path
